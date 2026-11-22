@@ -17,6 +17,8 @@ public interface IProfileService
     Task EnsureSelfPlayerAsync(User user);
     Task<ProfileDto> GetAsync(string uid);
     Task<ProfileDto> UpdateAsync(string uid, UpdateProfileRequest request);
+    /// <summary>Pushes the user's public profile to every copy of them in other players' lists.</summary>
+    Task MirrorAsync(User user, Player self);
     /// <summary>Copies a changed display name / photo from the user to their own player.</summary>
     Task SyncSelfFromUserAsync(User user);
 }
@@ -34,13 +36,20 @@ public class ProfileService : IProfileService
 
     public async Task EnsureSelfPlayerAsync(User user)
     {
+        var self = await GetOrCreateSelfAsync(user);
+        var email = PlayerRules.NormalizeEmail(user.Email);
+
+        // Other people's manual players that carry this e-mail become "this user" ...
+        if (email != null) await _players.LinkByEmailAsync(email, user.Id);
+        // ... and every copy of this user shows their real profile.
+        await MirrorAsync(user, self);
+    }
+
+    private async Task<Player> GetOrCreateSelfAsync(User user)
+    {
         var now = Clock.UtcNow();
         var email = PlayerRules.NormalizeEmail(user.Email);
 
-        // 1. Other people's manual players that carry this e-mail become "this user".
-        if (email != null) await _players.LinkByEmailAsync(email, user.Id);
-
-        // 2. The user's own player.
         var self = await _players.GetSelfAsync(user.Id);
         if (self == null)
         {
@@ -53,10 +62,10 @@ public class ProfileService : IProfileService
                 adopt.Version++;
                 adopt.UpdatedAt = now;
                 await _players.SaveAsync(adopt, false);
-                return;
+                return adopt;
             }
 
-            await _players.SaveAsync(new Player
+            var created = new Player
             {
                 Id = PlayerRules.SelfPlayerId(user.Id),
                 UserId = user.Id,
@@ -70,8 +79,9 @@ public class ProfileService : IProfileService
                 IsSelf = true,
                 CreatedAt = now,
                 UpdatedAt = now
-            }, true);
-            return;
+            };
+            await _players.SaveAsync(created, true);
+            return created;
         }
 
         var changed = false;
@@ -84,7 +94,11 @@ public class ProfileService : IProfileService
             self.UpdatedAt = now;
             await _players.SaveAsync(self, false);
         }
+        return self;
     }
+
+    public Task MirrorAsync(User user, Player self) =>
+        _players.MirrorProfileAsync(user.Id, self.Name, self.Role, self.BattingStyle, self.BowlingStyle, user.City, user.PhotoUrl);
 
     public async Task<ProfileDto> GetAsync(string uid)
     {
@@ -145,6 +159,7 @@ public class ProfileService : IProfileService
         self.UpdatedAt = now;
 
         await _users.SaveChangesAsync();          // same scoped DbContext: saves the user and the player together
+        await MirrorAsync(user, self);
         return ToDto(user, self);
     }
 
@@ -159,6 +174,7 @@ public class ProfileService : IProfileService
         self.Version++;
         self.UpdatedAt = Clock.UtcNow();
         await _players.SaveAsync(self, false);
+        await MirrorAsync(user, self);
     }
 
     private static string DisplayNameOf(User u)

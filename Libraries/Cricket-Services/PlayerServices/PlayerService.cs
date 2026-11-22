@@ -72,6 +72,11 @@ public class PlayerService : IPlayerService
                 new() { ["current"] = ToDto(player) });
         }
 
+        // A player that IS a registered user (added by search / matched by e-mail) belongs to that user.
+        // Only they can change it (through their own profile); everyone else may just remove it from their list.
+        if (player is { IsSelf: false, LinkedUserId: not null })
+            throw ApiException.Forbidden("This player is a registered user. Only they can edit their profile.");
+
         player ??= new Player { Id = id, UserId = uid, CreatedAt = now };
 
         if (player.IsSelf)
@@ -108,7 +113,11 @@ public class PlayerService : IPlayerService
 
         // A manual player whose e-mail belongs to a registered user IS that user.
         if (!player.IsSelf)
+        {
             player.LinkedUserId = email == null ? null : await _players.FindUserIdByEmailAsync(email);
+            if (player.LinkedUserId != null && await _players.GetUserWithSelfAsync(player.LinkedUserId) is { } hit)
+                ApplyRegisteredProfile(player, hit);
+        }
 
         await _players.SaveAsync(player, isNew);
 
@@ -205,7 +214,7 @@ public class PlayerService : IPlayerService
             Id = Guid.NewGuid().ToString("N"),
             UserId = uid,
             Name = self?.Name ?? u.DisplayName ?? u.Email?.Split('@')[0] ?? "Player",
-            Email = u.Email,
+            Email = null,   // the e-mail was masked in the search result, so it is not copied either
             // Only the playing details are copied. Height, weight, date of birth and phone stay private.
             Role = self?.Role ?? "batter",
             BattingStyle = self?.BattingStyle ?? "Right-hand bat",
@@ -234,6 +243,26 @@ public class PlayerService : IPlayerService
         user.PhotoUrl = self.PhotoUrl ?? user.PhotoUrl;
         user.UpdatedAt = Clock.UtcNow();
         await _users.SaveChangesAsync();
+        await _players.MirrorProfileAsync(uid, self.Name, self.Role, self.BattingStyle, self.BowlingStyle, user.City, user.PhotoUrl);
+    }
+
+    /// <summary>Takes the public profile of the registered user and drops the private details typed by hand.</summary>
+    private static void ApplyRegisteredProfile(Player copy, UserSearchHit hit)
+    {
+        var u = hit.User;
+        var self = hit.Self;
+        copy.Name = self?.Name ?? u.DisplayName ?? copy.Name;
+        copy.Role = self?.Role ?? copy.Role;
+        copy.BattingStyle = self?.BattingStyle ?? copy.BattingStyle;
+        copy.BowlingStyle = self?.BowlingStyle ?? copy.BowlingStyle;
+        copy.City = u.City;
+        copy.PhotoUrl = u.PhotoUrl;
+        copy.PhoneNumber = null;
+        copy.Gender = null;
+        copy.DateOfBirth = null;
+        copy.HeightCm = null;
+        copy.WeightKg = null;
+        copy.JerseyNumber = null;
     }
 
     public static PlayerDto ToDto(Player p) => new()

@@ -30,6 +30,17 @@ public interface IPlayerRepo
     Task<List<Player>> SearchOwnAsync(string uid, string term, int take);
     Task<List<UserSearchHit>> SearchUsersAsync(string uid, string term, bool exactEmail, int take);
     Task<UserSearchHit?> GetDiscoverableUserAsync(string userId);
+
+    // ---- registered users own their data ----
+    /// <summary>The user and their own player, whether or not they are discoverable.</summary>
+    Task<UserSearchHit?> GetUserWithSelfAsync(string userId);
+    /// <summary>
+    /// Copies the user's public profile (name, role, styles, city, photo) onto every copy of them in other
+    /// people's player lists and clears the private fields there. Only rows that differ are touched, so
+    /// nobody re-syncs for nothing. Returns the number of copies updated.
+    /// </summary>
+    Task<int> MirrorProfileAsync(string userId, string name, string role, string battingStyle, string bowlingStyle,
+        string? city, string? photoUrl);
 }
 
 public class PlayerRepo : IPlayerRepo
@@ -130,5 +141,43 @@ public class PlayerRepo : IPlayerRepo
         if (u == null) return null;
         var self = await _ctx.Players.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId && x.IsSelf && x.DeletedAt == null);
         return new UserSearchHit(u, self);
+    }
+
+    public async Task<UserSearchHit?> GetUserWithSelfAsync(string userId)
+    {
+        var u = await _ctx.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == userId && x.IsActive);
+        if (u == null) return null;
+        var self = await _ctx.Players.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId && x.IsSelf && x.DeletedAt == null);
+        return new UserSearchHit(u, self);
+    }
+
+    public Task<int> MirrorProfileAsync(string userId, string name, string role, string battingStyle, string bowlingStyle,
+        string? city, string? photoUrl)
+    {
+        var now = DateTime.UtcNow;
+        var cityValue = city ?? "";
+        var photoValue = photoUrl ?? "";
+        return _ctx.Players
+            .Where(x => x.LinkedUserId == userId && !x.IsSelf && x.DeletedAt == null
+                        && (x.Name != name || x.Role != role || x.BattingStyle != battingStyle || x.BowlingStyle != bowlingStyle
+                            || (x.City ?? "") != cityValue || (x.PhotoUrl ?? "") != photoValue
+                            || x.HeightCm != null || x.WeightKg != null || x.DateOfBirth != null
+                            || x.PhoneNumber != null || x.Gender != null || x.JerseyNumber != null))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.Name, name)
+                .SetProperty(x => x.Role, role)
+                .SetProperty(x => x.BattingStyle, battingStyle)
+                .SetProperty(x => x.BowlingStyle, bowlingStyle)
+                .SetProperty(x => x.City, city)
+                .SetProperty(x => x.PhotoUrl, photoUrl)
+                // Private details belong to the person, not to the people who added them.
+                .SetProperty(x => x.HeightCm, (decimal?)null)
+                .SetProperty(x => x.WeightKg, (decimal?)null)
+                .SetProperty(x => x.DateOfBirth, (DateOnly?)null)
+                .SetProperty(x => x.PhoneNumber, (string?)null)
+                .SetProperty(x => x.Gender, (string?)null)
+                .SetProperty(x => x.JerseyNumber, (int?)null)
+                .SetProperty(x => x.Version, x => x.Version + 1)
+                .SetProperty(x => x.UpdatedAt, now));
     }
 }
