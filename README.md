@@ -2,7 +2,7 @@
 
 Backend for the Flutter app **Cricket Scorer** (`com.pothi.cricket`): Firebase-authenticated users, cloud sync of
 teams / players / matches, live ball-by-ball scoring, and FCM push notifications.
-Implements the "Cricket Scorer: Backend API and Database Specification". ASP.NET Core 9, EF Core, SQL Server.
+Implements the "Cricket Scorer: Backend API and Database Specification". ASP.NET Core 7, EF Core 7, SQL Server.
 
 ## Solution layout (same layering as CMSAPI)
 
