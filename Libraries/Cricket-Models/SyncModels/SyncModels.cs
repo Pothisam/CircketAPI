@@ -31,6 +31,8 @@ public class SyncRejected
     public string Type { get; set; } = "";
     public string Id { get; set; } = "";
     public string Reason { get; set; } = "";
+    /// <summary>Human readable explanation of the reason.</summary>
+    public string? Message { get; set; }
 }
 
 public class SyncPushResponse

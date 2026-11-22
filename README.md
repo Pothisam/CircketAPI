@@ -112,3 +112,26 @@ from `teams`, `players` and `matches` and adds indexes. No new tables: membershi
 
 Notification `team_added` ("<scorer> added you to <team>") is sent to a registered user when a player linked to them is
 added to a team's squad (`PUT /teams/{id}`, also via `POST /sync/push`). Only players that are new in the squad notify.
+
+## Matches between teams of different users (upgrade 003)
+
+Run `Database\CricketDB_Upgrade_003_MatchInvitations.sql` after upgrade 002 (safe to re-run). It adds the table
+`match_invitations` and the columns `matches.invitation_id` / `matches.opponent_user_id`.
+
+Flow: the scorer (owner of team A) searches a team of another user, sends an invitation (**pending**), the other owner
+**accepts** or **rejects**. An accepted invitation is the scheduled match: both owners see it. The scorer starts it
+(toss + both playing XIs); the real match is created in the scorer's account and linked back (**started**).
+The opponent's owner and the members of the opponent team see the match through `GET /me/matches`.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /teams/search?q=` | Teams of **other** users by name (min. 2 chars). Users who switched off "let other players find me" are not listed. |
+| `POST /match-invitations` | Challenge a team: `{ fromTeamId, toOwnerId, toTeamId, overs, scheduledAt?, venue?, message? }` -> `201`. The other owner is notified (`match_invite`). |
+| `GET /match-invitations?box=incoming\|outgoing\|all&status=` | My invitations (`direction` says which side I am) |
+| `POST /match-invitations/{id}/accept` / `reject` | Only the owner of the invited team, only while `pending`. The sender is notified (`match_invite_response`). |
+| `POST /match-invitations/{id}/cancel` | The sender while `pending`; either side once `accepted`. The other side is notified. |
+| `GET /match-invitations/{id}/opponent-squad` | The invited team and its players (with `playerId`), for the scorer to pick the opponent's XI |
+| `PUT /matches/{id}` (changed) | A body with `invitationId` links the match to an accepted invitation (teams must be the invited ones). Output: `opponentUserId`. |
+
+Rules: you cannot challenge your own team; one open invitation per pair of teams; only the scorer (owner of the
+match row) can score; deleting a user removes the invitations they received and clears `opponent_user_id`.

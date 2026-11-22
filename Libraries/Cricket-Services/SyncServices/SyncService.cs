@@ -92,7 +92,7 @@ public class SyncService : ISyncService
         }
         catch (ApiException ex)
         {
-            response.Rejected.Add(new SyncRejected { Type = type, Id = id, Reason = ex.Code });
+            response.Rejected.Add(new SyncRejected { Type = type, Id = id, Reason = ex.Code, Message = ex.Message });
         }
     }
 

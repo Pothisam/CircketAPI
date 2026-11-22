@@ -18,6 +18,16 @@ public interface IInvitationRepo
     Task<bool> HasPendingAsync(string fromUser, string fromTeam, string toUser, string toTeam);
     Task AddAsync(MatchInvitation invitation);
     Task SaveChangesAsync();
+
+    /// <summary>
+    /// accepted -> started, written directly to the database. (The match save clears the EF change
+    /// tracker, so a tracked invitation modified after it would silently not be saved.)
+    /// </summary>
+    Task MarkStartedAsync(string id, string matchId, DateTime now);
+    /// <summary>
+    /// Repairs invitations whose match was saved but that are still "accepted": they become "started".
+    /// </summary>
+    Task<int> HealStartedAsync(string me);
 }
 
 public class InvitationRepo : IInvitationRepo
@@ -86,4 +96,22 @@ public class InvitationRepo : IInvitationRepo
     }
 
     public Task SaveChangesAsync() => _ctx.SaveChangesAsync();
+
+    public Task MarkStartedAsync(string id, string matchId, DateTime now) =>
+        _ctx.MatchInvitations.Where(x => x.Id == id && (x.Status == "accepted" || x.Status == "started"))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.Status, "started")
+                .SetProperty(x => x.MatchId, matchId)
+                .SetProperty(x => x.UpdatedAt, now));
+
+    public Task<int> HealStartedAsync(string me)
+    {
+        var now = DateTime.UtcNow;
+        return _ctx.MatchInvitations
+            .Where(x => x.Status == "accepted" && (x.FromUserId == me || x.ToUserId == me)
+                        && _ctx.Matches.Any(m => m.InvitationId == x.Id && m.DeletedAt == null))
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.Status, "started")
+                .SetProperty(x => x.UpdatedAt, now));
+    }
 }

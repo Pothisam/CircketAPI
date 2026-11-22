@@ -89,5 +89,14 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_teams_name' AND obje
     CREATE INDEX idx_teams_name ON dbo.teams(name) WHERE deleted_at IS NULL;
 GO
 
+/* ------------------------------------------------ repair (safe to re-run) */
+-- A match that was saved with its invitation but left the invitation "accepted" (fixed in the API).
+UPDATE i
+SET    i.status = 'started', i.match_id = m.id, i.updated_at = SYSUTCDATETIME()
+FROM   dbo.match_invitations i
+JOIN   dbo.matches m ON m.invitation_id = i.id AND m.deleted_at IS NULL
+WHERE  i.status = 'accepted';
+GO
+
 PRINT 'Upgrade 003 (match invitations) applied.';
 GO

@@ -120,6 +120,7 @@ public class InvitationService : IInvitationService
             .Check(b is "all" or "incoming" or "outgoing", "box", "must be incoming, outgoing or all")
             .Check(status == null || Statuses.Contains(status), "status", "must be pending, accepted, rejected, cancelled or started")
             .ThrowIfAny();
+        await _invitations.HealStartedAsync(me);      // a started match must never look "scheduled"
         var rows = await _invitations.ListAsync(me, b, status, 100);
         return await ToDtosAsync(me, rows);
     }
@@ -153,6 +154,8 @@ public class InvitationService : IInvitationService
                 break;
 
             case "cancel":
+                if (inv.MatchId != null || inv.Status == "started")
+                    throw ApiException.Conflict("The match has already started and cannot be cancelled");
                 var allowed = inv.Status == "pending" ? inv.FromUserId == me : inv.Status == "accepted";
                 if (!allowed)
                     throw inv.Status is "pending" or "accepted"
@@ -219,10 +222,7 @@ public class InvitationService : IInvitationService
     public async Task MarkStartedAsync(MatchInvitation invitation, string matchId)
     {
         if (invitation.Status == "started" && invitation.MatchId == matchId) return;
-        invitation.Status = "started";
-        invitation.MatchId = matchId;
-        invitation.UpdatedAt = Clock.UtcNow();
-        await _invitations.SaveChangesAsync();
+        await _invitations.MarkStartedAsync(invitation.Id, matchId, Clock.UtcNow());
     }
 
     // ------------------------------------------------------------- helpers
