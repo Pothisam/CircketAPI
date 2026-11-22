@@ -11,6 +11,8 @@ public interface ITeamRepo
     Task<Dictionary<string, List<string>>> GetPlayerIdsAsync(string uid, IEnumerable<string> teamIds);
     /// <summary>Returns the subset of <paramref name="playerIds"/> that does not exist for this user.</summary>
     Task<List<string>> MissingPlayersAsync(string uid, IEnumerable<string> playerIds);
+    /// <summary>Registered users (other than the owner) that the given players are linked to.</summary>
+    Task<List<string>> GetLinkedUserIdsAsync(string uid, IEnumerable<string> playerIds);
     Task SaveAsync(Team team, bool isNew, List<string> playerIds);
     Task SoftDeleteAsync(Team team, DateTime now);
 }
@@ -53,6 +55,14 @@ public class TeamRepo : ITeamRepo
         return ids.Except(found).ToList();
     }
 
+    public Task<List<string>> GetLinkedUserIdsAsync(string uid, IEnumerable<string> playerIds)
+    {
+        var ids = playerIds.Distinct().ToList();
+        return _ctx.Players.AsNoTracking()
+            .Where(x => x.UserId == uid && ids.Contains(x.Id) && x.LinkedUserId != null && x.LinkedUserId != uid)
+            .Select(x => x.LinkedUserId!).Distinct().ToListAsync();
+    }
+
     public async Task SaveAsync(Team team, bool isNew, List<string> playerIds)
     {
         await using var tx = await _ctx.Database.BeginTransactionAsync();
@@ -73,7 +83,6 @@ public class TeamRepo : ITeamRepo
     {
         team.DeletedAt = now;
         team.UpdatedAt = now;
-        team.Version++;
         return _ctx.SaveChangesAsync();
     }
 }

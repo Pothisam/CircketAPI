@@ -66,11 +66,6 @@ public class PlayerService : IPlayerService
         var now = Clock.UtcNow();
         var player = await _players.GetAsync(uid, id);
         var isNew = player == null;
-        if (player != null && dto.Version.HasValue && dto.Version.Value < player.Version)
-        {
-            throw ApiException.Conflict("Version conflict: the server has a newer player",
-                new() { ["current"] = ToDto(player) });
-        }
 
         // A player that IS a registered user (added by search / matched by e-mail) belongs to that user.
         // Only they can change it (through their own profile); everyone else may just remove it from their list.
@@ -107,7 +102,6 @@ public class PlayerService : IPlayerService
         player.JerseyNumber = dto.JerseyNumber;
         player.City = PlayerRules.Clean(dto.City, 80);
         player.PhotoUrl = PlayerRules.Clean(dto.PhotoUrl, 2000);
-        player.Version = isNew ? 1 : player.Version + 1;
         player.UpdatedAt = now;
         player.DeletedAt = null;
 
@@ -201,7 +195,6 @@ public class PlayerService : IPlayerService
         {
             if (existing.DeletedAt == null) return (ToDto(existing), false);
             existing.DeletedAt = null;                       // they were removed earlier: bring them back
-            existing.Version++;
             existing.UpdatedAt = now;
             await _players.SaveAsync(existing, false);
             return (ToDto(existing), true);
@@ -272,7 +265,6 @@ public class PlayerService : IPlayerService
         Role = p.Role,
         BattingStyle = p.BattingStyle,
         BowlingStyle = p.BowlingStyle,
-        Version = p.Version,
         CreatedAt = p.CreatedAt,
         UpdatedAt = p.UpdatedAt,
         DeletedAt = p.DeletedAt,

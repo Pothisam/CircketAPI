@@ -32,5 +32,6 @@ public static class NotificationTypes
     public const string Milestone = "milestone";
     public const string InningsEnd = "innings_end";
     public const string MatchResult = "match_result";
+    public const string TeamAdded = "team_added";
     public const string Test = "test";
 }

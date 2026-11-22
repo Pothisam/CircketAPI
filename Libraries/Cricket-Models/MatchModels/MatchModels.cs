@@ -63,7 +63,6 @@ public class MatchDto
     public string? WinnerId { get; set; }
     [StringLength(255)] public string? ResultText { get; set; } = "";
     public List<InningsDto> Innings { get; set; } = new();
-    public int? Version { get; set; }
     // Output only
     public string? Visibility { get; set; }
     public DateTime? UpdatedAt { get; set; }

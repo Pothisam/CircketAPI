@@ -49,13 +49,13 @@ Admin endpoints require the Firebase custom claim `admin: true`.
 | Other | `GET /health`, `GET /config`, `POST /feedback`, `POST /admin/notifications/broadcast` |
 
 Errors use the spec's body `{ "error": { "code", "message", "details" } }`.
-A `409` additionally carries `current` (version conflicts) or `expectedSeq` (ball sequence conflicts) at the top level.
+A `409` additionally carries `expectedSeq` (ball sequence conflicts) at the top level.
 
 ## Behaviour worth knowing
 
 - **Ids are client-supplied** (PUT is an upsert). A body `id` that differs from the URL is rejected.
-- **Version conflicts** (teams, players, matches): `PUT` with a `version` lower than the stored one → 409. Omit `version` for an unconditional write.
-  Ball/innings/complete calls update `updated_at` (so sync sees them) but do not bump the match `version`.
+- **No row versioning.** `PUT` is a plain upsert (last write wins). Tables keep `created_at`, `updated_at` and `deleted_at`
+  (sync and soft delete need them); there is no `version` column and no audit trail.
 - **Ball endpoint** is idempotent: identical retry → 200, different content at the same `seq` → 409, a gap → 409 `expectedSeq`.
 - **Notifications** are sent from a background queue (never blocks scoring). Score text is the score *as of that ball*.
   Boundary pushes are limited to one per over per match. Quiet hours are evaluated in **UTC** (the server doesn't know the user's time zone).
@@ -96,3 +96,19 @@ How the linking works
 - Players that are not linked are people who never signed in: they only exist in the list of whoever added them.
 - The user's own player cannot be deleted (delete the account instead). `DELETE /me` detaches other lists' links first.
 - Users can switch off `isDiscoverable` to stay out of search results.
+
+## Teams and matches I belong to (upgrade 002)
+
+Run `Database\CricketDB_Upgrade_002_Memberships.sql` after upgrade 001 (safe to re-run). It drops the `version` column
+from `teams`, `players` and `matches` and adds indexes. No new tables: membership is derived from `team_players` /
+`match_players` joined to `players.linked_user_id` (the link between a player in someone's list and a signed-in user).
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /me/joined-teams` | Teams created by other scorers that contain me |
+| `GET /me/joined-teams/{ownerId}/{teamId}` | One of those teams with its squad (public details only: name, role, styles, photo) |
+| `GET /me/matches` | My match history in other scorers' matches: I was in the playing XI, or a team I belong to played |
+| `GET /me/matches/{ownerId}/{matchId}` | Full scorecard of one of those matches (read only, only for participants) |
+
+Notification `team_added` ("<scorer> added you to <team>") is sent to a registered user when a player linked to them is
+added to a team's squad (`PUT /teams/{id}`, also via `POST /sync/push`). Only players that are new in the squad notify.

@@ -74,7 +74,6 @@ public class PlayerRepo : IPlayerRepo
         await using var tx = await _ctx.Database.BeginTransactionAsync();
         player.DeletedAt = now;
         player.UpdatedAt = now;
-        player.Version++;
         await _ctx.SaveChangesAsync();
         await _ctx.TeamPlayers.Where(x => x.UserId == player.UserId && x.PlayerId == player.Id).ExecuteDeleteAsync();
         await tx.CommitAsync();
@@ -102,7 +101,6 @@ public class PlayerRepo : IPlayerRepo
         return _ctx.Players.Where(x => x.Email == email && x.LinkedUserId == null && !x.IsSelf && x.DeletedAt == null)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(x => x.LinkedUserId, uid)
-                .SetProperty(x => x.Version, x => x.Version + 1)
                 .SetProperty(x => x.UpdatedAt, now));
     }
 
@@ -177,7 +175,6 @@ public class PlayerRepo : IPlayerRepo
                 .SetProperty(x => x.PhoneNumber, (string?)null)
                 .SetProperty(x => x.Gender, (string?)null)
                 .SetProperty(x => x.JerseyNumber, (int?)null)
-                .SetProperty(x => x.Version, x => x.Version + 1)
                 .SetProperty(x => x.UpdatedAt, now));
     }
 }

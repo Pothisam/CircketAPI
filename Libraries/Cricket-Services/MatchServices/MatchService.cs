@@ -103,12 +103,6 @@ public class MatchService : IMatchService
 
         var now = Clock.UtcNow();
         var existing = await _matches.GetAsync(uid, id);
-        if (existing != null && dto.Version.HasValue && dto.Version.Value < existing.Version)
-        {
-            var current = await _matches.GetAggregateAsync(uid, id);
-            throw ApiException.Conflict("Version conflict: the server has a newer match",
-                new() { ["current"] = current == null ? null : MatchMapper.ToDto(current) });
-        }
 
         var isNew = existing == null;
         var m = existing ?? new Match { Id = id, UserId = uid, CreatedAt = now };
@@ -126,7 +120,6 @@ public class MatchService : IMatchService
         m.Status = dto.Status;
         m.WinnerId = MatchMapper.NullIfEmpty(dto.WinnerId);
         m.ResultText = dto.ResultText ?? "";
-        m.Version = isNew ? 1 : m.Version + 1;
         m.UpdatedAt = now;
         m.DeletedAt = null;                                  // an upsert revives a soft-deleted match
 

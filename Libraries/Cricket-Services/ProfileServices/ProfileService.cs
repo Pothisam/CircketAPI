@@ -59,7 +59,6 @@ public class ProfileService : IProfileService
             {
                 adopt.IsSelf = true;
                 adopt.LinkedUserId = user.Id;
-                adopt.Version++;
                 adopt.UpdatedAt = now;
                 await _players.SaveAsync(adopt, false);
                 return adopt;
@@ -90,7 +89,6 @@ public class ProfileService : IProfileService
         if (email != null && self.Email != email) { self.Email = email; changed = true; }
         if (changed)
         {
-            self.Version++;
             self.UpdatedAt = now;
             await _players.SaveAsync(self, false);
         }
@@ -155,7 +153,6 @@ public class ProfileService : IProfileService
         self.WeightKg = r.WeightKg;
         self.JerseyNumber = r.JerseyNumber;
         self.DeletedAt = null;
-        self.Version++;
         self.UpdatedAt = now;
 
         await _users.SaveChangesAsync();          // same scoped DbContext: saves the user and the player together
@@ -171,7 +168,6 @@ public class ProfileService : IProfileService
         if (self.Name == name && self.PhotoUrl == user.PhotoUrl) return;
         self.Name = name;
         self.PhotoUrl = user.PhotoUrl;
-        self.Version++;
         self.UpdatedAt = Clock.UtcNow();
         await _players.SaveAsync(self, false);
         await MirrorAsync(user, self);

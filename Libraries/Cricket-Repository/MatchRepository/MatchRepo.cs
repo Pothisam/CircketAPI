@@ -160,7 +160,6 @@ public class MatchRepo : IMatchRepo
     {
         match.DeletedAt = now;
         match.UpdatedAt = now;
-        match.Version++;
         return _ctx.SaveChangesAsync();
     }
 

@@ -9,7 +9,6 @@ public class PlayerDto
     public string Role { get; set; } = "batter";
     public string BattingStyle { get; set; } = "Right-hand bat";
     public string BowlingStyle { get; set; } = "None";
-    public int? Version { get; set; }
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }

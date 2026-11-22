@@ -1,7 +1,11 @@
 using Cricket_Models.CommonModels;
+using Cricket_Models.Enums;
 using Cricket_Models.TeamModels;
 using Cricket_Repository.Entity;
 using Cricket_Repository.TeamRepository;
+using Cricket_Repository.UserRepository;
+using Cricket_Services.NotificationServices;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Cricket_Services.TeamServices;
 
@@ -17,10 +21,14 @@ public interface ITeamService
 public class TeamService : ITeamService
 {
     private readonly ITeamRepo _teams;
+    private readonly IUserRepo _users;
+    private readonly INotificationDispatcher _dispatcher;
 
-    public TeamService(ITeamRepo teams)
+    public TeamService(ITeamRepo teams, IUserRepo users, INotificationDispatcher dispatcher)
     {
         _teams = teams;
+        _users = users;
+        _dispatcher = dispatcher;
     }
 
     public async Task<ListResponse<TeamDto>> ListAsync(string uid, int? limit, string? cursor, DateTime? updatedSince, bool includeDeleted)
@@ -70,21 +78,24 @@ public class TeamService : ITeamService
         var now = Clock.UtcNow();
         var team = await _teams.GetAsync(uid, id);
         var isNew = team == null;
-        if (team != null && dto.Version.HasValue && dto.Version.Value < team.Version)
-        {
-            throw ApiException.Conflict("Version conflict: the server has a newer team",
-                new() { ["current"] = await ToDtoAsync(uid, team) });
-        }
+
+        // Squad before this save: only players that are NEW in the squad get a notification.
+        var squadBefore = isNew
+            ? new List<string>()
+            : (await _teams.GetPlayerIdsAsync(uid, new[] { id })).GetValueOrDefault(id) ?? new List<string>();
 
         team ??= new Team { Id = id, UserId = uid, CreatedAt = now };
         team.Name = name;
         team.ShortName = shortName;
         team.ColorIndex = dto.ColorIndex;
-        team.Version = isNew ? 1 : team.Version + 1;
         team.UpdatedAt = now;
         team.DeletedAt = null;                           // an upsert revives a soft-deleted team
 
         await _teams.SaveAsync(team, isNew, playerIds);
+
+        var added = playerIds.Except(squadBefore).ToList();
+        if (added.Count > 0) await QueueTeamAddedAsync(uid, team, added);
+
         return ToDto(team, playerIds);
     }
 
@@ -93,6 +104,29 @@ public class TeamService : ITeamService
         var t = await _teams.GetAsync(uid, id);
         if (t == null || t.DeletedAt != null) throw ApiException.NotFound("Team");
         await _teams.SoftDeleteAsync(t, Clock.UtcNow());
+    }
+
+    /// <summary>Tells every registered user who was just added to the squad (from the background queue).</summary>
+    private async Task QueueTeamAddedAsync(string ownerUid, Team team, List<string> addedPlayerIds)
+    {
+        var targets = await _teams.GetLinkedUserIdsAsync(ownerUid, addedPlayerIds);
+        if (targets.Count == 0) return;
+
+        var owner = await _users.GetUserAsync(ownerUid);
+        var ownerName = string.IsNullOrWhiteSpace(owner?.DisplayName) ? "A scorer" : owner!.DisplayName!;
+        var teamId = team.Id;
+        var teamName = team.Name;
+
+        foreach (var target in targets)
+        {
+            _dispatcher.Enqueue(sp => sp.GetRequiredService<INotificationService>().SendToUserAsync(target, new OutgoingNotification
+            {
+                Type = NotificationTypes.TeamAdded,
+                Title = "You were added to a team",
+                Body = $"{ownerName} added you to {teamName}",
+                Data = new Dictionary<string, string> { ["teamId"] = teamId, ["ownerId"] = ownerUid, ["teamName"] = teamName }
+            }));
+        }
     }
 
     private async Task<TeamDto> ToDtoAsync(string uid, Team t)
@@ -108,7 +142,6 @@ public class TeamService : ITeamService
         ShortName = t.ShortName,
         ColorIndex = t.ColorIndex,
         PlayerIds = playerIds ?? new List<string>(),
-        Version = t.Version,
         CreatedAt = t.CreatedAt,
         UpdatedAt = t.UpdatedAt,
         DeletedAt = t.DeletedAt
