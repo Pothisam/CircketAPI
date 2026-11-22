@@ -16,6 +16,13 @@ public class User
     public DateTime? LastLoginAt { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+
+    // ---- profile (upgrade 001) ----
+    public string? Gender { get; set; }                     // male | female | other
+    public DateOnly? DateOfBirth { get; set; }
+    public string? City { get; set; }
+    /// <summary>Other users may find this user in player search.</summary>
+    public bool IsDiscoverable { get; set; } = true;
 }
 
 public class UserDevice
@@ -61,6 +68,21 @@ public class Player
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
+
+    // ---- profile (upgrade 001) ----
+    public string? Email { get; set; }                      // lower-case; used to match a registered user
+    public string? PhoneNumber { get; set; }
+    public string? Gender { get; set; }
+    public DateOnly? DateOfBirth { get; set; }
+    public decimal? HeightCm { get; set; }
+    public decimal? WeightKg { get; set; }
+    public int? JerseyNumber { get; set; }
+    public string? City { get; set; }
+    public string? PhotoUrl { get; set; }
+    /// <summary>The signed-in user this player is (null = not registered).</summary>
+    public string? LinkedUserId { get; set; }
+    /// <summary>True for the player that represents the roster owner.</summary>
+    public bool IsSelf { get; set; }
 }
 
 public class TeamPlayer

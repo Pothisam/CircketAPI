@@ -30,6 +30,9 @@ public class CricketContext : DbContext
         // All timestamps are UTC; make sure values read back are flagged Utc so JSON serialises with "Z".
         builder.Properties<DateTime>().HaveConversion<UtcConverter>();
         builder.Properties<DateTime?>().HaveConversion<NullableUtcConverter>();
+        // EF Core 7 has no built-in DateOnly mapping; store it in a SQL "date" column.
+        builder.Properties<DateOnly>().HaveConversion<DateOnlyConverter>().HaveColumnType("date");
+        builder.Properties<DateOnly?>().HaveConversion<NullableDateOnlyConverter>().HaveColumnType("date");
     }
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -55,6 +58,9 @@ public class CricketContext : DbContext
         b.Entity<Innings>().Property(x => x.InningsNo).ValueGeneratedNever();
         b.Entity<Ball>().Property(x => x.InningsNo).ValueGeneratedNever();
         b.Entity<Ball>().Property(x => x.Seq).ValueGeneratedNever();
+
+        b.Entity<Player>().Property(x => x.HeightCm).HasPrecision(5, 1);
+        b.Entity<Player>().Property(x => x.WeightKg).HasPrecision(5, 1);
 
         // snake_case columns: TeamAId -> team_a_id, FcmToken -> fcm_token ...
         foreach (var entity in b.Model.GetEntityTypes())
@@ -104,5 +110,17 @@ public class CricketContext : DbContext
         public NullableUtcConverter() : base(
             v => v.HasValue ? AsUtc(v.Value) : v,
             v => v.HasValue ? DateTime.SpecifyKind(v.Value, DateTimeKind.Utc) : v) { }
+    }
+
+    private class DateOnlyConverter : ValueConverter<DateOnly, DateTime>
+    {
+        public DateOnlyConverter() : base(v => v.ToDateTime(TimeOnly.MinValue), v => DateOnly.FromDateTime(v)) { }
+    }
+
+    private class NullableDateOnlyConverter : ValueConverter<DateOnly?, DateTime?>
+    {
+        public NullableDateOnlyConverter() : base(
+            v => v.HasValue ? v.Value.ToDateTime(TimeOnly.MinValue) : null,
+            v => v.HasValue ? DateOnly.FromDateTime(v.Value) : null) { }
     }
 }

@@ -5,6 +5,7 @@ using Cricket_Services.MatchServices;
 using Cricket_Services.MiscServices;
 using Cricket_Services.NotificationServices;
 using Cricket_Services.PlayerServices;
+using Cricket_Services.ProfileServices;
 using Cricket_Services.PushServices;
 using Cricket_Services.StatsServices;
 using Cricket_Services.SyncServices;
@@ -25,6 +26,7 @@ public static class DependencyInjection
         service.AddScoped<IDeviceService, DeviceService>();
         service.AddScoped<ITeamService, TeamService>();
         service.AddScoped<IPlayerService, PlayerService>();
+        service.AddScoped<IProfileService, ProfileService>();
         service.AddScoped<IMatchService, MatchService>();
         service.AddScoped<ISyncService, SyncService>();
         service.AddScoped<IStatsService, StatsService>();

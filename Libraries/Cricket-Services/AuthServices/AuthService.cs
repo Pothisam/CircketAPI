@@ -6,6 +6,7 @@ using Cricket_Repository.Entity;
 using Cricket_Repository.UserRepository;
 using Cricket_Services.DeviceServices;
 using Cricket_Services.NotificationServices;
+using Cricket_Services.ProfileServices;
 using Cricket_Services.PushServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -27,11 +28,13 @@ public class AuthService : IAuthService
     private readonly IDeviceService _devices;
     private readonly INotificationDispatcher _dispatcher;
     private readonly IPushSender _push;
+    private readonly IProfileService _profiles;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(IUserRepo users, IDeviceService devices, INotificationDispatcher dispatcher,
-        IPushSender push, ILogger<AuthService> logger)
+        IPushSender push, IProfileService profiles, ILogger<AuthService> logger)
     {
+        _profiles = profiles;
         _users = users;
         _devices = devices;
         _dispatcher = dispatcher;
@@ -69,6 +72,10 @@ public class AuthService : IAuthService
         user.UpdatedAt = now;
 
         if (isNew) await _users.AddUserAsync(user); else await _users.SaveChangesAsync();
+
+        // The user is also a player (searchable, can be added to teams) and players that were added
+        // by hand with this e-mail become linked to this user.
+        await _profiles.EnsureSelfPlayerAsync(user);
 
         var upsert = await _devices.UpsertAsync(ctx.Uid, request, null);
         var device = upsert.Device;
@@ -110,6 +117,7 @@ public class AuthService : IAuthService
         if (request.PhotoUrl != null) user.PhotoUrl = request.PhotoUrl.Trim();
         user.UpdatedAt = Clock.UtcNow();
         await _users.SaveChangesAsync();
+        await _profiles.SyncSelfFromUserAsync(user);
         return ToDto(user);
     }
 

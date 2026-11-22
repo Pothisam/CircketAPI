@@ -61,7 +61,14 @@ public class UserRepo : IUserRepo
     }
 
     // Everything the user owns is removed by the DB's ON DELETE CASCADE chain.
-    public Task DeleteUserAsync(string uid) => _ctx.Users.Where(x => x.Id == uid).ExecuteDeleteAsync();
+    // players.linked_user_id is NO ACTION (a second cascade path is not allowed), so other people's
+    // players that point at this user are detached first.
+    public async Task DeleteUserAsync(string uid)
+    {
+        await _ctx.Players.Where(x => x.LinkedUserId == uid)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.LinkedUserId, (string?)null));
+        await _ctx.Users.Where(x => x.Id == uid).ExecuteDeleteAsync();
+    }
 
     public Task<UserDevice?> GetDeviceByTokenAsync(string fcmToken) =>
         _ctx.UserDevices.FirstOrDefaultAsync(x => x.FcmToken == fcmToken);

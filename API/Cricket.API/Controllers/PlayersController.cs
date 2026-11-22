@@ -23,6 +23,22 @@ public class PlayersController : BaseApiController
     public async Task<ActionResult<ListResponse<PlayerDto>>> List(int? limit, string? cursor, string? updatedSince, bool includeDeleted = false) =>
         Ok(await _players.ListAsync(Uid, limit, cursor, ParseSince(updatedSince), includeDeleted));
 
+    /// <summary>
+    /// Find players by name or e-mail. Returns the caller's own players (source "mine") and registered
+    /// users who are not in the list yet (source "user"; found by name or by their exact e-mail).
+    /// </summary>
+    [HttpGet("search")]
+    public async Task<IActionResult> Search(string? q, int? limit) =>
+        Ok(new { items = await _players.SearchAsync(Uid, q, limit) });
+
+    /// <summary>Adds a registered user to the caller's player list (linked to that user).</summary>
+    [HttpPost("from-user")]
+    public async Task<ActionResult<PlayerDto>> AddFromUser(AddPlayerFromUserRequest request)
+    {
+        var (player, created) = await _players.AddFromUserAsync(Uid, request.UserId);
+        return created ? StatusCode(StatusCodes.Status201Created, player) : Ok(player);
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<PlayerDto>> Get(string id) => Ok(await _players.GetAsync(Uid, id));
 
