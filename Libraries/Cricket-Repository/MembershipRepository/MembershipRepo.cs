@@ -90,11 +90,20 @@ public class MembershipRepo : IMembershipRepo
         var owners = pairs.Select(x => x.UserId).Distinct().ToList();
         var byTeam = owners.Count == 0
             ? new List<Match>()
-            : (await _ctx.Matches.AsNoTracking().Where(m => owners.Contains(m.UserId) && m.DeletedAt == null).ToListAsync())
-                .Where(m => pairs.Contains((m.UserId, m.TeamAId)) || pairs.Contains((m.UserId, m.TeamBId)))
+            : (await _ctx.Matches.AsNoTracking()
+                    .Where(m => (owners.Contains(m.UserId) || (m.OpponentUserId != null && owners.Contains(m.OpponentUserId)))
+                                && m.DeletedAt == null && m.UserId != me)
+                    .ToListAsync())
+                .Where(m => pairs.Contains((m.UserId, m.TeamAId)) || pairs.Contains((m.UserId, m.TeamBId))
+                            // a match against a team of another user: team B lives in the opponent's account
+                            || (m.OpponentUserId != null && pairs.Contains((m.OpponentUserId, m.TeamBId))))
                 .ToList();
 
-        return played.Concat(byTeam)
+        // 3. cross-user matches in which I am the opponent's owner
+        var asOpponent = await _ctx.Matches.AsNoTracking()
+            .Where(m => m.OpponentUserId == me && m.DeletedAt == null).ToListAsync();
+
+        return played.Concat(byTeam).Concat(asOpponent)
             .GroupBy(m => (m.UserId, m.Id)).Select(g => g.First())
             .OrderByDescending(m => m.MatchDate)
             .Take(take)
@@ -106,6 +115,7 @@ public class MembershipRepo : IMembershipRepo
         if (ownerId == me) return false;
         var match = await _ctx.Matches.AsNoTracking().FirstOrDefaultAsync(m => m.UserId == ownerId && m.Id == matchId && m.DeletedAt == null);
         if (match == null) return false;
+        if (match.OpponentUserId == me) return true;      // I own the opponent team
 
         var played = await (from p in _ctx.Players.AsNoTracking()
                             where p.UserId == ownerId && p.LinkedUserId == me && !p.IsSelf
@@ -116,6 +126,7 @@ public class MembershipRepo : IMembershipRepo
         if (played) return true;
 
         var joined = await ListJoinedTeamsAsync(me);
-        return joined.Any(j => j.Team.UserId == ownerId && (j.Team.Id == match.TeamAId || j.Team.Id == match.TeamBId));
+        return joined.Any(j => (j.Team.UserId == ownerId && (j.Team.Id == match.TeamAId || j.Team.Id == match.TeamBId))
+                               || (match.OpponentUserId != null && j.Team.UserId == match.OpponentUserId && j.Team.Id == match.TeamBId));
     }
 }

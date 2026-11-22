@@ -1,6 +1,8 @@
 using Cricket_Models.CommonModels;
+using Cricket_Models.InvitationModels;
 using Cricket_Models.StatsModels;
 using Cricket_Models.TeamModels;
+using Cricket_Services.InvitationServices;
 using Cricket_Services.StatsServices;
 using Cricket_Services.TeamServices;
 using Microsoft.AspNetCore.Mvc;
@@ -12,12 +14,22 @@ public class TeamsController : BaseApiController
 {
     private readonly ITeamService _teams;
     private readonly IStatsService _stats;
+    private readonly IInvitationService _invitations;
 
-    public TeamsController(ITeamService teams, IStatsService stats)
+    public TeamsController(ITeamService teams, IStatsService stats, IInvitationService invitations)
     {
         _teams = teams;
         _stats = stats;
+        _invitations = invitations;
     }
+
+    /// <summary>
+    /// Find teams of OTHER users by name (min. 2 characters), to challenge them to a match.
+    /// Teams of users who switched off "let other players find me" are not listed.
+    /// </summary>
+    [HttpGet("search")]
+    public async Task<IActionResult> Search(string? q, int? limit) =>
+        Ok(new { items = await _invitations.SearchTeamsAsync(Uid, q, limit) });
 
     [HttpGet]
     public async Task<ActionResult<ListResponse<TeamDto>>> List(int? limit, string? cursor, string? updatedSince, bool includeDeleted = false) =>

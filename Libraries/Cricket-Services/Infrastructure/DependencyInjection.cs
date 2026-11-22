@@ -1,6 +1,7 @@
 using Cricket_Repository.Infrastructure;
 using Cricket_Services.AuthServices;
 using Cricket_Services.DeviceServices;
+using Cricket_Services.InvitationServices;
 using Cricket_Services.MatchServices;
 using Cricket_Services.MembershipServices;
 using Cricket_Services.MiscServices;
@@ -30,6 +31,7 @@ public static class DependencyInjection
         service.AddScoped<IProfileService, ProfileService>();
         service.AddScoped<IMatchService, MatchService>();
         service.AddScoped<IMembershipService, MembershipService>();
+        service.AddScoped<IInvitationService, InvitationService>();
         service.AddScoped<ISyncService, SyncService>();
         service.AddScoped<IStatsService, StatsService>();
         service.AddScoped<IMiscService, MiscService>();

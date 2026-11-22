@@ -44,6 +44,7 @@ public class MembershipService : IMembershipService
             ColorIndex = d.ColorIndex, PlayerCount = d.PlayerCount,
             Squad = squad.Select(p => new SquadMemberDto
             {
+                PlayerId = p.Id,
                 Name = p.Name,
                 Role = p.Role,
                 BattingStyle = p.BattingStyle,

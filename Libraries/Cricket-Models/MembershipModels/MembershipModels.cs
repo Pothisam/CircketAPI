@@ -15,6 +15,8 @@ public class JoinedTeamDto
 /// <summary>Public details of a player in a squad. Private details (height, weight, DOB, phone, e-mail) are never included.</summary>
 public class SquadMemberDto
 {
+    /// <summary>Id in the squad owner's player list (used to pick a playing XI).</summary>
+    public string PlayerId { get; set; } = "";
     public string Name { get; set; } = "";
     public string Role { get; set; } = "batter";
     public string BattingStyle { get; set; } = "Right-hand bat";

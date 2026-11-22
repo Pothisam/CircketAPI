@@ -52,6 +52,8 @@ internal static class MatchMapper
             ResultText = m.ResultText,
             Innings = inningsDtos,
             Visibility = m.Visibility,
+            InvitationId = m.InvitationId,
+            OpponentUserId = m.OpponentUserId,
             UpdatedAt = m.UpdatedAt,
             DeletedAt = m.DeletedAt
         };

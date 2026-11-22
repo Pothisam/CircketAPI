@@ -4,6 +4,7 @@ using Cricket_Models.Enums;
 using Cricket_Models.MatchModels;
 using Cricket_Repository.Entity;
 using Cricket_Repository.MatchRepository;
+using Cricket_Services.InvitationServices;
 using Cricket_Services.NotificationServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,11 +44,13 @@ public class MatchService : IMatchService
     private const string ShareAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";   // no 0/O/1/I
     private readonly IMatchRepo _matches;
     private readonly INotificationDispatcher _dispatcher;
+    private readonly IInvitationService _invitations;
 
-    public MatchService(IMatchRepo matches, INotificationDispatcher dispatcher)
+    public MatchService(IMatchRepo matches, INotificationDispatcher dispatcher, IInvitationService invitations)
     {
         _matches = matches;
         _dispatcher = dispatcher;
+        _invitations = invitations;
     }
 
     // =================================================================== CRUD
@@ -105,7 +108,18 @@ public class MatchService : IMatchService
         var existing = await _matches.GetAsync(uid, id);
 
         var isNew = existing == null;
+
+        // A match against a team of another user is started from an accepted invitation.
+        MatchInvitation? invitation = null;
+        if (!string.IsNullOrWhiteSpace(dto.InvitationId))
+            invitation = await _invitations.ValidateForMatchAsync(uid, dto.InvitationId.Trim(), id, dto.TeamAId, dto.TeamBId);
+
         var m = existing ?? new Match { Id = id, UserId = uid, CreatedAt = now };
+        if (invitation != null)
+        {
+            m.InvitationId = invitation.Id;
+            m.OpponentUserId = invitation.ToUserId;
+        }
         m.TeamAId = dto.TeamAId;
         m.TeamBId = dto.TeamBId;
         m.TeamAName = dto.TeamAName.Trim();
@@ -146,6 +160,7 @@ public class MatchService : IMatchService
         }
 
         await _matches.SaveAggregateAsync(agg, isNew);
+        if (invitation != null) await _invitations.MarkStartedAsync(invitation, id);
         var result = MatchMapper.ToDto(agg);
         result.Visibility = existing?.Visibility ?? "private";
         return result;

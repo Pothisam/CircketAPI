@@ -67,6 +67,11 @@ public class UserRepo : IUserRepo
     {
         await _ctx.Players.Where(x => x.LinkedUserId == uid)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.LinkedUserId, (string?)null));
+        // Invitations received by this user (the ones they sent are removed by the cascade) and matches
+        // in which they were the opponent.
+        await _ctx.MatchInvitations.Where(x => x.ToUserId == uid).ExecuteDeleteAsync();
+        await _ctx.Matches.Where(x => x.OpponentUserId == uid)
+            .ExecuteUpdateAsync(s => s.SetProperty(x => x.OpponentUserId, (string?)null));
         await _ctx.Users.Where(x => x.Id == uid).ExecuteDeleteAsync();
     }
 

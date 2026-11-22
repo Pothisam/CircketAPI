@@ -1,4 +1,5 @@
 using Cricket_Repository.Entity;
+using Cricket_Repository.InvitationRepository;
 using Cricket_Repository.MatchRepository;
 using Cricket_Repository.MembershipRepository;
 using Cricket_Repository.NotificationRepository;
@@ -20,6 +21,7 @@ public static class DependencyInjection
         service.AddScoped<IPlayerRepo, PlayerRepo>();
         service.AddScoped<IMatchRepo, MatchRepo>();
         service.AddScoped<IMembershipRepo, MembershipRepo>();
+        service.AddScoped<IInvitationRepo, InvitationRepo>();
         service.AddScoped<INotificationRepo, NotificationRepo>();
         service.AddDbContext<CricketContext>(option =>
             option.UseSqlServer(config.GetConnectionString("DefaultConnection")));

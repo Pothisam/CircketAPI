@@ -111,6 +111,10 @@ public class Match
     public string ResultText { get; set; } = "";
     public string Visibility { get; set; } = "private";
     public string? ShareCode { get; set; }
+    /// <summary>Set when the match was created from an accepted invitation (team B belongs to another user).</summary>
+    public string? InvitationId { get; set; }
+    /// <summary>Owner of team B in a cross-user match. They can see the match, only the owner scores it.</summary>
+    public string? OpponentUserId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
@@ -210,4 +214,27 @@ public class Feedback
     public string Message { get; set; } = null!;
     public string? AppVersion { get; set; }
     public DateTime CreatedAt { get; set; }
+}
+
+/// <summary>A challenge from the owner of one team to the owner of another user's team.</summary>
+public class MatchInvitation
+{
+    public string Id { get; set; } = null!;
+    public string FromUserId { get; set; } = null!;
+    public string FromTeamId { get; set; } = null!;
+    public string FromTeamName { get; set; } = null!;
+    public string FromTeamShort { get; set; } = null!;
+    public string ToUserId { get; set; } = null!;
+    public string ToTeamId { get; set; } = null!;
+    public string ToTeamName { get; set; } = null!;
+    public string ToTeamShort { get; set; } = null!;
+    public int Overs { get; set; }
+    public DateTime? ScheduledAt { get; set; }
+    public string Venue { get; set; } = "";
+    public string? Message { get; set; }
+    public string Status { get; set; } = "pending";   // pending | accepted | rejected | cancelled | started
+    public string? MatchId { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public DateTime? RespondedAt { get; set; }
 }

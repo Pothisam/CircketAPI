@@ -63,7 +63,10 @@ public class MatchDto
     public string? WinnerId { get; set; }
     [StringLength(255)] public string? ResultText { get; set; } = "";
     public List<InningsDto> Innings { get; set; } = new();
+    /// <summary>Set when the match is started from an accepted invitation (team B belongs to another user).</summary>
+    public string? InvitationId { get; set; }
     // Output only
+    public string? OpponentUserId { get; set; }
     public string? Visibility { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
