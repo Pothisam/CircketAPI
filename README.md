@@ -71,3 +71,28 @@ A `409` additionally carries `current` (version conflicts) or `expectedSeq` (bal
 - Added a `feedback` table (the spec lists `POST /feedback` but no table).
 - A matching `email`/`phone` already owned by a *different* Firebase uid is not copied onto the new row
   (columns are unique and the primary key is the Firebase uid). Use Firebase account linking to merge identities.
+
+## User profile and player linking (upgrade 001)
+
+Run `Database\CricketDB_Upgrade_001_UserProfile.sql` **after** `CricketDB_Deploy.sql` (safe to re-run). It adds
+profile columns to `users` (`gender`, `date_of_birth`, `city`, `is_discoverable`) and `players` (`email`,
+`phone_number`, `gender`, `date_of_birth`, `height_cm`, `weight_kg`, `jersey_number`, `city`, `photo_url`,
+`linked_user_id`, `is_self`), plus indexes and check constraints, and back-fills a "self" player for existing users.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /me/profile`, `PUT /me/profile` | The user's cricket profile (identity + role, batting/bowling style, height, weight, jersey, DOB, gender, city, `isDiscoverable`). `PUT` replaces it and updates the user's own player. |
+| `GET /players/search?q=&limit=` | Search my players (name or e-mail, source `mine`) and registered users (name, or **exact** e-mail, source `user`). Min. 2 characters. Other users' e-mails are masked unless searched by the exact address. |
+| `POST /players/from-user` `{ "userId" }` | Add a registered user to my player list, linked to that user (only role/styles/city/photo are copied; height, weight, DOB and phone stay private). `201` when created, `200` if already in the list. |
+| `PUT /players/{id}` (changed) | The player body now also carries `email`, `phoneNumber`, `gender`, `dateOfBirth`, `heightCm`, `weightKg`, `jerseyNumber`, `city`, `photoUrl`. Output-only: `linkedUserId`, `isSelf`, `isRegistered`. |
+
+How the linking works
+
+- `POST /auth/session` (first sign-in) creates the user **and a player for them in their own list** (`is_self = 1`,
+  id `u_<uid>`). If they had already added themselves by hand with their own e-mail, that player is adopted instead.
+- E-mail is the match key (case-insensitive). A manual player whose e-mail belongs to a registered user is linked
+  to that user (`linked_user_id`) when it is saved. A user who signs up later is linked to every player, in any
+  list, that already carries their e-mail.
+- Players that are not linked are people who never signed in: they only exist in the list of whoever added them.
+- The user's own player cannot be deleted (delete the account instead). `DELETE /me` detaches other lists' links first.
+- Users can switch off `isDiscoverable` to stay out of search results.
