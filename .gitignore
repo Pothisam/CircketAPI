@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+*.user
+logs/
+appsettings.Local.json
+# Firebase service-account keys must never be committed (use a secret manager)
+firebase-service-account*.json
+*-firebase-adminsdk-*.json
