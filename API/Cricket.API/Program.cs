@@ -149,11 +149,9 @@ try
     app.UseMiddleware<ExceptionHandlingMiddleware>();
     app.UseCors(AllowedOriginsPolicy);
 
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseSwagger();
-        app.UseSwaggerUI(options => options.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None));
-    }
+    // Swagger is intentionally enabled in every environment (including production) at /swagger.
+    app.UseSwagger();
+    app.UseSwaggerUI(options => options.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.None));
 
     var apiVersion = configuration["ApiInfo:Version"];
     app.Use(async (context, next) =>
