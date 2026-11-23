@@ -81,7 +81,8 @@ public class InvitationService : IInvitationService
                 new List<ErrorDetail> { new("fromTeamId", "unknown team") });
 
         var to = await _teams.GetAsync(r.ToOwnerId, r.ToTeamId);
-        if (to == null || to.DeletedAt != null || !await _invitations.OwnerIsActiveAsync(r.ToOwnerId))
+        // only public teams can be challenged (a private team cannot be found, so it cannot be challenged either)
+        if (to == null || to.DeletedAt != null || !to.IsPublic || !await _invitations.OwnerIsActiveAsync(r.ToOwnerId))
             throw ApiException.NotFound("Opponent team");
 
         if (await _invitations.HasPendingAsync(me, from.Id, to.UserId, to.Id))

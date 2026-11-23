@@ -50,6 +50,8 @@ public class Team
     public string Name { get; set; } = null!;
     public string ShortName { get; set; } = null!;
     public int ColorIndex { get; set; }
+    /// <summary>Public: other users can find the team by name and challenge it. Private: only the owner sees it.</summary>
+    public bool IsPublic { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }

@@ -88,6 +88,7 @@ public class TeamService : ITeamService
         team.Name = name;
         team.ShortName = shortName;
         team.ColorIndex = dto.ColorIndex;
+        team.IsPublic = dto.IsPublic;
         team.UpdatedAt = now;
         team.DeletedAt = null;                           // an upsert revives a soft-deleted team
 
@@ -141,6 +142,7 @@ public class TeamService : ITeamService
         Name = t.Name,
         ShortName = t.ShortName,
         ColorIndex = t.ColorIndex,
+        IsPublic = t.IsPublic,
         PlayerIds = playerIds ?? new List<string>(),
         CreatedAt = t.CreatedAt,
         UpdatedAt = t.UpdatedAt,

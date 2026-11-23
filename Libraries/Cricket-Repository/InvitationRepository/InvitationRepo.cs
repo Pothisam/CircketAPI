@@ -7,7 +7,7 @@ public record TeamSearchRow(Team Team, string? OwnerName, int PlayerCount);
 
 public interface IInvitationRepo
 {
-    /// <summary>Teams of other (active, discoverable) users whose name contains the term.</summary>
+    /// <summary>PUBLIC teams of other (active) users whose name contains the term.</summary>
     Task<List<TeamSearchRow>> SearchTeamsAsync(string me, string term, int take);
     Task<bool> OwnerIsActiveAsync(string userId);
     Task<Dictionary<string, string?>> GetUserNamesAsync(IEnumerable<string> userIds);
@@ -42,9 +42,9 @@ public class InvitationRepo : IInvitationRepo
     public async Task<List<TeamSearchRow>> SearchTeamsAsync(string me, string term, int take)
     {
         var rows = await (from t in _ctx.Teams.AsNoTracking()
-                          where t.UserId != me && t.DeletedAt == null && t.Name.Contains(term)
+                          where t.UserId != me && t.DeletedAt == null && t.IsPublic && t.Name.Contains(term)
                           join u in _ctx.Users.AsNoTracking() on t.UserId equals u.Id
-                          where u.IsActive && u.IsDiscoverable
+                          where u.IsActive
                           orderby t.Name
                           select new { Team = t, Owner = u.DisplayName }).Take(take).ToListAsync();
         if (rows.Count == 0) return new List<TeamSearchRow>();

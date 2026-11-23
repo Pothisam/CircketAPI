@@ -25,7 +25,7 @@ public class TeamsController : BaseApiController
 
     /// <summary>
     /// Find teams of OTHER users by name (min. 2 characters), to challenge them to a match.
-    /// Teams of users who switched off "let other players find me" are not listed.
+    /// Only PUBLIC teams are listed (the owner switches a team between public and private).
     /// </summary>
     [HttpGet("search")]
     public async Task<IActionResult> Search(string? q, int? limit) =>
