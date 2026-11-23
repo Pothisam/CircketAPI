@@ -44,6 +44,8 @@ public class SendResultDto
 {
     public int Sent { get; set; }
     public int Failed { get; set; }
+    /// <summary>Why nothing was delivered: push_disabled | no_target_devices | quiet_hours | an FCM error code.</summary>
+    public string? Reason { get; set; }
 }
 
 public class BroadcastRequest

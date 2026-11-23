@@ -81,14 +81,14 @@ public class NotificationService : INotificationService
         {
             row.Error = "quiet_hours";
             await _notifications.SaveChangesAsync();
-            return new SendResultDto();
+            return new SendResultDto { Reason = "quiet_hours" };
         }
         if (devices.Count == 0)
         {
             row.Status = "failed";
             row.Error = "no_target_devices";
             await _notifications.SaveChangesAsync();
-            return new SendResultDto();
+            return new SendResultDto { Reason = "no_target_devices" };
         }
 
         var results = await _push.SendAsync(devices.Select(d => d.FcmToken).ToList(), n.Title, n.Body, data);
@@ -104,7 +104,12 @@ public class NotificationService : INotificationService
         row.SentAt = ok.Count > 0 ? now : null;
         row.Error = ok.Count > 0 ? null : Trunc(results.FirstOrDefault()?.Error, 255);
         await _notifications.SaveChangesAsync();
-        return new SendResultDto { Sent = ok.Count, Failed = results.Count - ok.Count };
+        return new SendResultDto
+        {
+            Sent = ok.Count,
+            Failed = results.Count - ok.Count,
+            Reason = ok.Count > 0 ? null : (results.FirstOrDefault()?.Error ?? "send_failed")
+        };
     }
 
     // ------------------------------------------------------------------ inbox
