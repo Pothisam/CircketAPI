@@ -15,6 +15,8 @@ public interface IMembershipRepo
     /// <summary>Teams of other users that contain a player linked to <paramref name="me"/>.</summary>
     Task<List<JoinedTeamRow>> ListJoinedTeamsAsync(string me);
     Task<JoinedTeamRow?> GetJoinedTeamAsync(string me, string ownerId, string teamId);
+    /// <summary>PUBLIC teams of other scorers (not <paramref name="exceptOwner"/>) that contain a player linked to <paramref name="userId"/>.</summary>
+    Task<List<JoinedTeamRow>> ListPublicTeamsOfUserAsync(string userId, string exceptOwner);
     /// <summary>Squad (owner's players) of a team, in squad order.</summary>
     Task<List<Player>> GetSquadAsync(string ownerId, string teamId);
     /// <summary>Other users' matches I played in, or that were played by a team I belong to (newest first).</summary>
@@ -40,6 +42,35 @@ public class MembershipRepo : IMembershipRepo
                           join t in _ctx.Teams.AsNoTracking()
                               on new { tp.UserId, Id = tp.TeamId } equals new { t.UserId, t.Id }
                           where t.DeletedAt == null
+                          join o in _ctx.Users.AsNoTracking() on t.UserId equals o.Id
+                          select new { Team = t, Owner = o.DisplayName }).ToListAsync();
+
+        var teams = rows.GroupBy(r => (r.Team.UserId, r.Team.Id)).Select(g => g.First()).ToList();
+        if (teams.Count == 0) return new List<JoinedTeamRow>();
+
+        var owners = teams.Select(t => t.Team.UserId).Distinct().ToList();
+        var counts = (await _ctx.TeamPlayers.AsNoTracking()
+                .Where(x => owners.Contains(x.UserId))
+                .GroupBy(x => new { x.UserId, x.TeamId })
+                .Select(g => new { g.Key.UserId, g.Key.TeamId, Count = g.Count() })
+                .ToListAsync())
+            .ToDictionary(x => (x.UserId, x.TeamId), x => x.Count);
+
+        return teams
+            .Select(t => new JoinedTeamRow(t.Team, t.Owner, counts.GetValueOrDefault((t.Team.UserId, t.Team.Id))))
+            .OrderBy(t => t.Team.Name)
+            .ToList();
+    }
+
+    public async Task<List<JoinedTeamRow>> ListPublicTeamsOfUserAsync(string userId, string exceptOwner)
+    {
+        var rows = await (from p in _ctx.Players.AsNoTracking()
+                          where p.LinkedUserId == userId && !p.IsSelf && p.DeletedAt == null && p.UserId != exceptOwner
+                          join tp in _ctx.TeamPlayers.AsNoTracking()
+                              on new { p.UserId, PlayerId = p.Id } equals new { tp.UserId, tp.PlayerId }
+                          join t in _ctx.Teams.AsNoTracking()
+                              on new { tp.UserId, Id = tp.TeamId } equals new { t.UserId, t.Id }
+                          where t.DeletedAt == null && t.IsPublic
                           join o in _ctx.Users.AsNoTracking() on t.UserId equals o.Id
                           select new { Team = t, Owner = o.DisplayName }).ToListAsync();
 

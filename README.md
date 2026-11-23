@@ -135,3 +135,7 @@ The opponent's owner and the members of the opponent team see the match through 
 
 Rules: you cannot challenge your own team; one open invitation per pair of teams; only the scorer (owner of the
 match row) can score; deleting a user removes the invitations they received and clears `opponent_user_id`.
+
+`GET /players/{id}/teams` (player screen, Teams tab): other scorers' **public** teams in which one of my players (a registered
+user) also plays. Empty for players who never signed in, for me, and for users who opted out of being found. Private teams
+are never listed. The teams of my own list and their matches come from the data already on the device.

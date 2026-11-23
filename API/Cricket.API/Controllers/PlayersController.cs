@@ -1,6 +1,7 @@
 using Cricket_Models.CommonModels;
 using Cricket_Models.PlayerModels;
 using Cricket_Models.StatsModels;
+using Cricket_Services.MembershipServices;
 using Cricket_Services.PlayerServices;
 using Cricket_Services.StatsServices;
 using Microsoft.AspNetCore.Mvc;
@@ -12,12 +13,22 @@ public class PlayersController : BaseApiController
 {
     private readonly IPlayerService _players;
     private readonly IStatsService _stats;
+    private readonly IMembershipService _membership;
 
-    public PlayersController(IPlayerService players, IStatsService stats)
+    public PlayersController(IPlayerService players, IStatsService stats, IMembershipService membership)
     {
         _players = players;
         _stats = stats;
+        _membership = membership;
     }
+
+    /// <summary>
+    /// Other scorers' PUBLIC teams in which this player (a registered user in my list) also plays.
+    /// Empty for players who never signed in, for me, and for users who opted out of being found.
+    /// </summary>
+    [HttpGet("{id}/teams")]
+    public async Task<IActionResult> PublicTeams(string id) =>
+        Ok(new { items = await _membership.ListPublicTeamsOfPlayerAsync(Uid, id) });
 
     [HttpGet]
     public async Task<ActionResult<ListResponse<PlayerDto>>> List(int? limit, string? cursor, string? updatedSince, bool includeDeleted = false) =>
