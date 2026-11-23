@@ -87,6 +87,8 @@ public class ProfileService : IProfileService
         if (self.DeletedAt != null) { self.DeletedAt = null; changed = true; }
         if (self.LinkedUserId != user.Id) { self.LinkedUserId = user.Id; changed = true; }
         if (email != null && self.Email != email) { self.Email = email; changed = true; }
+        // the sign-in photo (Google picture) may not have been known when the player was created
+        if (string.IsNullOrEmpty(self.PhotoUrl) && !string.IsNullOrEmpty(user.PhotoUrl)) { self.PhotoUrl = user.PhotoUrl; changed = true; }
         if (changed)
         {
             self.UpdatedAt = now;
