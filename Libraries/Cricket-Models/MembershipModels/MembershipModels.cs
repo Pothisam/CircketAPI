@@ -25,6 +25,10 @@ public class SquadMemberDto
     public bool IsRegistered { get; set; }
     /// <summary>This member is the caller.</summary>
     public bool IsMe { get; set; }
+    public bool IsCaptain { get; set; }
+    public bool IsViceCaptain { get; set; }
+    /// <summary>The creator of the team.</summary>
+    public bool IsOwner { get; set; }
 }
 
 public class JoinedTeamDetailDto : JoinedTeamDto

@@ -22,6 +22,11 @@ public interface IMembershipRepo
     /// <summary>Other users' matches I played in, or that were played by a team I belong to (newest first).</summary>
     Task<List<Match>> ListParticipantMatchesAsync(string me, int take);
     Task<bool> IsParticipantAsync(string me, string ownerId, string matchId);
+    /// <summary>
+    /// Takes every player of <paramref name="ownerId"/>'s list that is linked to <paramref name="me"/> out of the
+    /// team's squad (and clears the captain / vice-captain role and any admin access). Returns how many were removed.
+    /// </summary>
+    Task<int> LeaveTeamAsync(string me, string ownerId, string teamId);
 }
 
 public class MembershipRepo : IMembershipRepo
@@ -139,6 +144,32 @@ public class MembershipRepo : IMembershipRepo
             .OrderByDescending(m => m.MatchDate)
             .Take(take)
             .ToList();
+    }
+
+    public async Task<int> LeaveTeamAsync(string me, string ownerId, string teamId)
+    {
+        var now = DateTime.UtcNow;
+        var mine = await _ctx.Players.AsNoTracking()
+            .Where(p => p.UserId == ownerId && p.LinkedUserId == me && !p.IsSelf)
+            .Select(p => p.Id).ToListAsync();
+
+        var removed = mine.Count == 0 ? 0 : await _ctx.TeamPlayers
+            .Where(x => x.UserId == ownerId && x.TeamId == teamId && mine.Contains(x.PlayerId))
+            .ExecuteDeleteAsync();
+
+        if (removed > 0)
+        {
+            // the roles of that player in this team go with him; the owner's device sees the change on its next sync
+            await _ctx.Teams.Where(t => t.UserId == ownerId && t.Id == teamId && t.CaptainPlayerId != null && mine.Contains(t.CaptainPlayerId))
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.CaptainPlayerId, (string?)null));
+            await _ctx.Teams.Where(t => t.UserId == ownerId && t.Id == teamId && t.ViceCaptainPlayerId != null && mine.Contains(t.ViceCaptainPlayerId))
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.ViceCaptainPlayerId, (string?)null));
+            await _ctx.Teams.Where(t => t.UserId == ownerId && t.Id == teamId)
+                .ExecuteUpdateAsync(s => s.SetProperty(t => t.UpdatedAt, now));
+        }
+        // an admin who leaves is no longer an admin
+        await _ctx.TeamManagers.Where(m => m.OwnerUserId == ownerId && m.TeamId == teamId && m.ManagerUserId == me).ExecuteDeleteAsync();
+        return removed;
     }
 
     public async Task<bool> IsParticipantAsync(string me, string ownerId, string matchId)

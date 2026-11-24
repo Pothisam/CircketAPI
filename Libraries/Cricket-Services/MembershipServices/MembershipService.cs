@@ -3,7 +3,11 @@ using Cricket_Models.MatchModels;
 using Cricket_Models.MembershipModels;
 using Cricket_Repository.MatchRepository;
 using Cricket_Repository.PlayerRepository;
+using Cricket_Models.Enums;
 using Cricket_Repository.MembershipRepository;
+using Cricket_Repository.UserRepository;
+using Cricket_Services.NotificationServices;
+using Microsoft.Extensions.DependencyInjection;
 using Cricket_Services.MatchServices;
 
 namespace Cricket_Services.MembershipServices;
@@ -13,6 +17,8 @@ public interface IMembershipService
     /// <summary>Teams created by others in which the caller is a member.</summary>
     Task<List<JoinedTeamDto>> ListJoinedTeamsAsync(string me);
     Task<JoinedTeamDetailDto> GetJoinedTeamAsync(string me, string ownerId, string teamId);
+    /// <summary>Leave a team somebody else added me to. The creator is told.</summary>
+    Task LeaveTeamAsync(string me, string ownerId, string teamId);
     /// <summary>
     /// Public teams of other scorers in which one of MY players (a registered user) plays. Private teams are
     /// never shown, and neither are the teams of users who switched off "let other players find me".
@@ -29,12 +35,34 @@ public class MembershipService : IMembershipService
     private readonly IMembershipRepo _membership;
     private readonly IMatchRepo _matches;
     private readonly IPlayerRepo _players;
+    private readonly IUserRepo _users;
+    private readonly INotificationDispatcher _dispatcher;
 
-    public MembershipService(IMembershipRepo membership, IMatchRepo matches, IPlayerRepo players)
+    public MembershipService(IMembershipRepo membership, IMatchRepo matches, IPlayerRepo players, IUserRepo users,
+        INotificationDispatcher dispatcher)
     {
         _membership = membership;
         _matches = matches;
         _players = players;
+        _users = users;
+        _dispatcher = dispatcher;
+    }
+
+    public async Task LeaveTeamAsync(string me, string ownerId, string teamId)
+    {
+        var row = await _membership.GetJoinedTeamAsync(me, ownerId, teamId) ?? throw ApiException.NotFound("Team");
+        if (await _membership.LeaveTeamAsync(me, ownerId, teamId) == 0) throw ApiException.NotFound("Team");
+
+        var who = await _users.GetUserAsync(me);
+        var name = string.IsNullOrWhiteSpace(who?.DisplayName) ? "A player" : who!.DisplayName!;
+        var teamName = row.Team.Name;
+        _dispatcher.Enqueue(sp => sp.GetRequiredService<INotificationService>().SendToUserAsync(ownerId, new OutgoingNotification
+        {
+            Type = NotificationTypes.TeamLeft,
+            Title = "A player left your team",
+            Body = $"{name} left {teamName}",
+            Data = new Dictionary<string, string> { ["teamId"] = teamId, ["teamName"] = teamName }
+        }));
     }
 
     public async Task<List<JoinedTeamDto>> ListPublicTeamsOfPlayerAsync(string me, string playerId)
@@ -70,7 +98,10 @@ public class MembershipService : IMembershipService
                 BowlingStyle = p.BowlingStyle,
                 PhotoUrl = p.PhotoUrl,
                 IsRegistered = p.LinkedUserId != null,
-                IsMe = p.LinkedUserId == me
+                IsMe = p.LinkedUserId == me,
+                IsCaptain = row.Team.CaptainPlayerId == p.Id,
+                IsViceCaptain = row.Team.ViceCaptainPlayerId == p.Id,
+                IsOwner = p.IsSelf
             }).ToList()
         };
     }

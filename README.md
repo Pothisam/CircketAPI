@@ -177,3 +177,8 @@ visibility is checked; teams that already exist are kept. Teams handed to a mana
 **Player limit.** A user's player list holds up to **50 players** (their own player and registered users added from search count too).
 `PUT /players/{id}`, `POST /players/from-user`, `POST /sync/push` and an admin adding a player to a team (the owner's list) return
 `LIMIT_REACHED` (403) for a NEW player once the list is full. Existing players are never touched.
+
+`DELETE /me/joined-teams/{ownerId}/{teamId}`: leave a team somebody else added me to. The players of the creator's list that are linked to me
+are taken out of the squad (their captain / vice-captain role and any admin access go with them), the creator is notified (`team_left`)
+and the team disappears from `GET /me/joined-teams`. The creator can add the player again. `GET /me/joined-teams/{ownerId}/{teamId}` now also
+returns `isCaptain`, `isViceCaptain` and `isOwner` for each squad member.

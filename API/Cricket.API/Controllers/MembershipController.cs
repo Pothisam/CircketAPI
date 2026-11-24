@@ -28,6 +28,14 @@ public class MembershipController : BaseApiController
     public async Task<ActionResult<JoinedTeamDetailDto>> JoinedTeam(string ownerId, string teamId) =>
         Ok(await _membership.GetJoinedTeamAsync(Uid, ownerId, teamId));
 
+    /// <summary>Leave a team somebody else added me to. I disappear from its squad and the creator is told.</summary>
+    [HttpDelete("joined-teams/{ownerId}/{teamId}")]
+    public async Task<IActionResult> LeaveTeam(string ownerId, string teamId)
+    {
+        await _membership.LeaveTeamAsync(Uid, ownerId, teamId);
+        return NoContent();
+    }
+
     /// <summary>My match history in other scorers' matches (I played, or my team played).</summary>
     [HttpGet("matches")]
     public async Task<IActionResult> Matches(int? limit) => Ok(new { items = await _membership.ListMatchesAsync(Uid, limit) });
