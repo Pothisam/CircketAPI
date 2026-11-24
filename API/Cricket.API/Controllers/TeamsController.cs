@@ -15,13 +15,32 @@ public class TeamsController : BaseApiController
     private readonly ITeamService _teams;
     private readonly IStatsService _stats;
     private readonly IInvitationService _invitations;
+    private readonly ITeamManagementService _management;
 
-    public TeamsController(ITeamService teams, IStatsService stats, IInvitationService invitations)
+    public TeamsController(ITeamService teams, IStatsService stats, IInvitationService invitations, ITeamManagementService management)
     {
         _teams = teams;
         _stats = stats;
         _invitations = invitations;
+        _management = management;
     }
+
+    /// <summary>Users this team was handed over to (owner only).</summary>
+    [HttpGet("{id}/managers")]
+    public async Task<IActionResult> Managers(string id) => Ok(new { items = await _management.ListManagersAsync(Uid, id) });
+
+    /// <summary>
+    /// Hand the team over to a registered user: it appears on their device and they can run it (squad, order,
+    /// captain) but not delete it. The creator stays the owner. Max. 5 managers.
+    /// </summary>
+    [HttpPost("{id}/managers")]
+    public async Task<IActionResult> AddManager(string id, AddManagerRequest request) =>
+        Ok(new { items = await _management.AddManagerAsync(Uid, id, request.UserId) });
+
+    /// <summary>Take the team back from a manager (owner only).</summary>
+    [HttpDelete("{id}/managers/{userId}")]
+    public async Task<IActionResult> RemoveManager(string id, string userId) =>
+        Ok(new { items = await _management.RemoveManagerAsync(Uid, id, userId) });
 
     /// <summary>
     /// Find teams of OTHER users by name (min. 2 characters), to challenge them to a match.

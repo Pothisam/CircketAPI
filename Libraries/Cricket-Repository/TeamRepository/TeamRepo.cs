@@ -13,6 +13,10 @@ public interface ITeamRepo
     Task<List<string>> MissingPlayersAsync(string uid, IEnumerable<string> playerIds);
     /// <summary>Registered users (other than the owner) that the given players are linked to.</summary>
     Task<List<string>> GetLinkedUserIdsAsync(string uid, IEnumerable<string> playerIds);
+    /// <summary>Teams the user owns (not deleted).</summary>
+    Task<int> CountActiveAsync(string uid);
+    /// <summary>Public teams the user owns (not deleted), ignoring one team.</summary>
+    Task<int> CountPublicAsync(string uid, string? exceptTeamId);
     Task SaveAsync(Team team, bool isNew, List<string> playerIds);
     Task SoftDeleteAsync(Team team, DateTime now);
 }
@@ -62,6 +66,13 @@ public class TeamRepo : ITeamRepo
             .Where(x => x.UserId == uid && ids.Contains(x.Id) && x.LinkedUserId != null && x.LinkedUserId != uid)
             .Select(x => x.LinkedUserId!).Distinct().ToListAsync();
     }
+
+    public Task<int> CountActiveAsync(string uid) =>
+        _ctx.Teams.AsNoTracking().CountAsync(x => x.UserId == uid && x.DeletedAt == null);
+
+    public Task<int> CountPublicAsync(string uid, string? exceptTeamId) =>
+        _ctx.Teams.AsNoTracking().CountAsync(x => x.UserId == uid && x.DeletedAt == null && x.IsPublic
+                                                   && (exceptTeamId == null || x.Id != exceptTeamId));
 
     public async Task SaveAsync(Team team, bool isNew, List<string> playerIds)
     {

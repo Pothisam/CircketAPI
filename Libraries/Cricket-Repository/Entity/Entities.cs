@@ -52,6 +52,9 @@ public class Team
     public int ColorIndex { get; set; }
     /// <summary>Public: other users can find the team by name and challenge it. Private: only the owner sees it.</summary>
     public bool IsPublic { get; set; }
+    /// <summary>Captain and vice-captain of THIS team (both must be in the squad).</summary>
+    public string? CaptainPlayerId { get; set; }
+    public string? ViceCaptainPlayerId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? DeletedAt { get; set; }
@@ -239,4 +242,13 @@ public class MatchInvitation
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? RespondedAt { get; set; }
+}
+
+/// <summary>A user the team was handed to. The creator (teams.user_id) stays the owner.</summary>
+public class TeamManager
+{
+    public string OwnerUserId { get; set; } = null!;
+    public string TeamId { get; set; } = null!;
+    public string ManagerUserId { get; set; } = null!;
+    public DateTime CreatedAt { get; set; }
 }

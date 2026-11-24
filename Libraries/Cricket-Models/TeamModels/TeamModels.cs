@@ -10,6 +10,9 @@ public class TeamDto
     public int ColorIndex { get; set; }
     /// <summary>true = other users can find this team by name and challenge it to a match; false = private (default).</summary>
     public bool IsPublic { get; set; }
+    /// <summary>Captain of this team (must be in PlayerIds, otherwise it is cleared).</summary>
+    public string? CaptainPlayerId { get; set; }
+    public string? ViceCaptainPlayerId { get; set; }
     public List<string> PlayerIds { get; set; } = new();
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

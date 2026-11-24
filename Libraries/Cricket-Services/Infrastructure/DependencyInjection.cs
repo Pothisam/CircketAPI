@@ -27,6 +27,7 @@ public static class DependencyInjection
         service.AddScoped<IAuthService, AuthService>();
         service.AddScoped<IDeviceService, DeviceService>();
         service.AddScoped<ITeamService, TeamService>();
+        service.AddScoped<ITeamManagementService, TeamManagementService>();
         service.AddScoped<IPlayerService, PlayerService>();
         service.AddScoped<IProfileService, ProfileService>();
         service.AddScoped<IMatchService, MatchService>();

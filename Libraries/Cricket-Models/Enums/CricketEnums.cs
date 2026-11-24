@@ -33,6 +33,7 @@ public static class NotificationTypes
     public const string InningsEnd = "innings_end";
     public const string MatchResult = "match_result";
     public const string TeamAdded = "team_added";
+    public const string TeamManager = "team_manager";
     public const string MatchInvite = "match_invite";
     public const string MatchInviteResponse = "match_invite_response";
     public const string Test = "test";

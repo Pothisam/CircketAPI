@@ -70,6 +70,8 @@ public class UserRepo : IUserRepo
         // Invitations received by this user (the ones they sent are removed by the cascade) and matches
         // in which they were the opponent.
         await _ctx.MatchInvitations.Where(x => x.ToUserId == uid).ExecuteDeleteAsync();
+        // Teams that were handed over to this user (the ones they own are removed by the cascade).
+        await _ctx.TeamManagers.Where(x => x.ManagerUserId == uid).ExecuteDeleteAsync();
         await _ctx.Matches.Where(x => x.OpponentUserId == uid)
             .ExecuteUpdateAsync(s => s.SetProperty(x => x.OpponentUserId, (string?)null));
         await _ctx.Users.Where(x => x.Id == uid).ExecuteDeleteAsync();

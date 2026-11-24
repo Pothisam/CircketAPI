@@ -22,6 +22,8 @@ public class ApiException : Exception
         new(400, "VALIDATION_ERROR", message, details);
     public static ApiException Unauthenticated(string message) => new(401, "UNAUTHENTICATED", message);
     public static ApiException Forbidden(string message) => new(403, "FORBIDDEN", message);
+    /// <summary>A per-user limit was reached (for example 3 teams).</summary>
+    public static ApiException LimitReached(string message) => new(403, "LIMIT_REACHED", message);
     public static ApiException NotFound(string what) => new(404, "NOT_FOUND", $"{what} not found");
     public static ApiException Conflict(string message, Dictionary<string, object?>? extra = null) =>
         new(409, "CONFLICT", message) { Extra = extra };

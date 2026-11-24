@@ -139,3 +139,32 @@ match row) can score; deleting a user removes the invitations they received and 
 `GET /players/{id}/teams` (player screen, Teams tab): other scorers' **public** teams in which one of my players (a registered
 user) also plays. Empty for players who never signed in, for me, and for users who opted out of being found. Private teams
 are never listed. The teams of my own list and their matches come from the data already on the device.
+
+## Captain, handing a team over, team limit (upgrade 005)
+
+Run `Database\CricketDB_Upgrade_005_TeamRolesAndManagers.sql` after upgrade 004 (safe to re-run). It adds
+`teams.captain_player_id` / `vice_captain_player_id` and the table `team_managers`.
+
+**Captain / vice-captain** belong to the team: `PUT /teams/{id}` takes and returns `captainPlayerId` and
+`viceCaptainPlayerId`. Both must be in the squad; if a player leaves the squad the role is cleared. The squad order
+is the order of `playerIds`.
+
+**Handing a team over** (the creator stays the owner):
+
+| Endpoint | Who | Purpose |
+|---|---|---|
+| `GET /teams/{id}/managers` | owner | Users the team was handed to |
+| `POST /teams/{id}/managers` `{ userId }` | owner | Hand the team over (max. 5 managers). The user is notified (`team_manager`). |
+| `DELETE /teams/{id}/managers/{userId}` | owner | Take it back |
+| `GET /me/managed-teams` | manager | Teams handed over to me |
+| `GET /me/managed-teams/{ownerId}/{teamId}` | manager | Team + squad + the owner's other players |
+| `PUT /me/managed-teams/{ownerId}/{teamId}` | manager | Name, short name, colour, squad order, captain, vice-captain |
+| `POST /me/managed-teams/{ownerId}/{teamId}/players` | manager | Add a registered user (`userId`) or a new player (`name`) |
+| `DELETE /me/managed-teams/{ownerId}/{teamId}` | manager | Give the team back |
+
+A manager can run the team but **cannot** delete it, change its visibility, hand it to others, or remove the
+creator from the squad (`403`). Only the owner does those. Players a manager adds are created in the owner's list.
+
+**Team limit** (enforced by `PUT /teams/{id}` and `POST /sync/push`, error code `LIMIT_REACHED`, HTTP 403):
+a user owns at most **3 teams: 1 public and 2 private**, duplicates included. Only creating a team or changing its
+visibility is checked; teams that already exist are kept. Teams handed to a manager do not count for the manager.

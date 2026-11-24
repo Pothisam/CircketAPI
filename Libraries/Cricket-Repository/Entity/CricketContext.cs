@@ -25,6 +25,7 @@ public class CricketContext : DbContext
     public DbSet<MatchFollower> MatchFollowers => Set<MatchFollower>();
     public DbSet<Feedback> Feedbacks => Set<Feedback>();
     public DbSet<MatchInvitation> MatchInvitations => Set<MatchInvitation>();
+    public DbSet<TeamManager> TeamManagers => Set<TeamManager>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder builder)
     {
@@ -52,6 +53,7 @@ public class CricketContext : DbContext
         b.Entity<MatchFollower>().ToTable("match_followers").HasKey(x => new { x.MatchOwnerId, x.MatchId, x.FollowerId });
         b.Entity<Feedback>().ToTable("feedback").HasKey(x => x.Id);
         b.Entity<MatchInvitation>().ToTable("match_invitations").HasKey(x => x.Id);
+        b.Entity<TeamManager>().ToTable("team_managers").HasKey(x => new { x.OwnerUserId, x.TeamId, x.ManagerUserId });
 
         // Ids are supplied by the client (or generated in code) except the three identity columns.
         b.Entity<Notification>().Property(x => x.Id).ValueGeneratedOnAdd();
