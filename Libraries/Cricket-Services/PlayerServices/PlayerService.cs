@@ -72,6 +72,11 @@ public class PlayerService : IPlayerService
         if (player is { IsSelf: false, LinkedUserId: not null })
             throw ApiException.Forbidden("This player is a registered user. Only they can edit their profile.");
 
+        // 50 players per list. Only NEW players are checked (also one that was deleted and is added again);
+        // the owner's own player is created at sign-in and never blocked.
+        if (player is not { IsSelf: true } && (player == null || player.DeletedAt != null))
+            await EnsureRoomAsync(uid);
+
         player ??= new Player { Id = id, UserId = uid, CreatedAt = now };
 
         if (player.IsSelf)
@@ -194,11 +199,14 @@ public class PlayerService : IPlayerService
         if (existing != null)
         {
             if (existing.DeletedAt == null) return (ToDto(existing), false);
+            await EnsureRoomAsync(uid);
             existing.DeletedAt = null;                       // they were removed earlier: bring them back
             existing.UpdatedAt = now;
             await _players.SaveAsync(existing, false);
             return (ToDto(existing), true);
         }
+
+        await EnsureRoomAsync(uid);
 
         var u = hit.User;
         var self = hit.Self;
@@ -223,6 +231,13 @@ public class PlayerService : IPlayerService
     }
 
     // ------------------------------------------------------------------ helpers
+
+    private async Task EnsureRoomAsync(string uid)
+    {
+        if (await _players.CountActiveAsync(uid) >= PlayerLimits.MaxPlayers)
+            throw ApiException.LimitReached(
+                $"The player list is full: up to {PlayerLimits.MaxPlayers} players are allowed. Remove a player to add a new one.");
+    }
 
     /// <summary>The owner's player is the source of the profile; keep the user row (identity) in step.</summary>
     private async Task CopySelfToUserAsync(string uid, Player self)

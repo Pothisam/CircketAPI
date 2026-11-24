@@ -162,9 +162,18 @@ is the order of `playerIds`.
 | `POST /me/managed-teams/{ownerId}/{teamId}/players` | manager | Add a registered user (`userId`) or a new player (`name`) |
 | `DELETE /me/managed-teams/{ownerId}/{teamId}` | manager | Give the team back |
 
+**Admins are chosen from the squad.** In the app the owner opens the menu of a player in the team and chooses **Make admin**
+(`POST /teams/{id}/managers`). Only a registered player (one with an app account) who is in the squad can be made admin
+(`400` otherwise). If that player leaves the squad, the admin access is removed. A manager cannot remove themselves from the
+squad (they give the team back instead).
+
 A manager can run the team but **cannot** delete it, change its visibility, hand it to others, or remove the
 creator from the squad (`403`). Only the owner does those. Players a manager adds are created in the owner's list.
 
 **Team limit** (enforced by `PUT /teams/{id}` and `POST /sync/push`, error code `LIMIT_REACHED`, HTTP 403):
 a user owns at most **3 teams: 1 public and 2 private**, duplicates included. Only creating a team or changing its
 visibility is checked; teams that already exist are kept. Teams handed to a manager do not count for the manager.
+
+**Player limit.** A user's player list holds up to **50 players** (their own player and registered users added from search count too).
+`PUT /players/{id}`, `POST /players/from-user`, `POST /sync/push` and an admin adding a player to a team (the owner's list) return
+`LIMIT_REACHED` (403) for a NEW player once the list is full. Existing players are never touched.

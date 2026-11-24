@@ -41,6 +41,10 @@ public class ManagedMemberDto
     public bool IsRegistered { get; set; }
     /// <summary>The creator of the team: a manager cannot remove them.</summary>
     public bool IsOwner { get; set; }
+    /// <summary>This player is an admin of the team (a registered user the team was handed to).</summary>
+    public bool IsAdmin { get; set; }
+    /// <summary>This player is the caller.</summary>
+    public bool IsMe { get; set; }
 }
 
 /// <summary>A team handed over to me, with what I need to run it.</summary>

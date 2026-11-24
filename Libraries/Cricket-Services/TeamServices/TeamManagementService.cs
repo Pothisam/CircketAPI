@@ -71,9 +71,13 @@ public class TeamManagementService : ITeamManagementService
 
         var target = await _users.GetUserAsync(userId);
         if (target == null || !target.IsActive) throw ApiException.NotFound("User");
-        // Only somebody the owner can see: a discoverable user, or a player of their own list that is that user.
-        var known = target.IsDiscoverable || await _players.GetByLinkedUserAsync(me, userId) != null;
-        if (!known) throw ApiException.NotFound("User");
+
+        // An admin is chosen from the players of the team: a registered user who is in the squad.
+        var squad = (await _teams.GetPlayerIdsAsync(me, new[] { teamId })).GetValueOrDefault(teamId) ?? new List<string>();
+        var inSquad = await _teams.GetLinkedUserIdsAsync(me, squad);
+        if (!inSquad.Contains(userId))
+            throw ApiException.Validation("Only a player of this team who has an app account can be made an admin. Add the player to the team first.",
+                new List<ErrorDetail> { new("userId", "is not a registered player of this team") });
 
         var current = await _managers.ListManagersAsync(me, teamId);
         if (current.Any(m => m.UserId == userId)) return await ManagersAsync(me, teamId);
@@ -83,8 +87,8 @@ public class TeamManagementService : ITeamManagementService
         await _managers.AddAsync(new TeamManager { OwnerUserId = me, TeamId = teamId, ManagerUserId = userId, CreatedAt = Clock.UtcNow() });
 
         var owner = await _users.GetUserAsync(me);
-        Notify(userId, "Team handed over to you",
-            $"{NameOf(owner?.DisplayName)} made you a manager of {team.Name}. You can run the team, but not delete it.",
+        Notify(userId, "You are now an admin",
+            $"{NameOf(owner?.DisplayName)} made you an admin of {team.Name}. You can run the team, but not delete it.",
             new Dictionary<string, string> { ["teamId"] = teamId, ["ownerId"] = me, ["teamName"] = team.Name });
         return await ManagersAsync(me, teamId);
     }
@@ -94,7 +98,7 @@ public class TeamManagementService : ITeamManagementService
         var team = await RequireOwnTeamAsync(me, teamId);
         if (await _managers.RemoveAsync(me, teamId, userId))
         {
-            Notify(userId, "Team taken back", $"You are no longer a manager of {team.Name}.",
+            Notify(userId, "Admin access removed", $"You are no longer an admin of {team.Name}.",
                 new Dictionary<string, string> { ["teamId"] = teamId, ["ownerId"] = me, ["teamName"] = team.Name });
         }
         return await ManagersAsync(me, teamId);
@@ -111,7 +115,7 @@ public class TeamManagementService : ITeamManagementService
     public async Task<ManagedTeamDto> GetManagedAsync(string me, string ownerId, string teamId)
     {
         var team = await RequireManagedAsync(me, ownerId, teamId);
-        return await BuildDetailAsync(team);
+        return await BuildDetailAsync(team, me);
     }
 
     public async Task<ManagedTeamDto> UpdateManagedAsync(string me, string ownerId, string teamId, ManagedTeamUpdate u)
@@ -193,13 +197,14 @@ public class TeamManagementService : ITeamManagementService
         .Select(m => new ManagerDto { UserId = m.UserId, Name = m.Name, PhotoUrl = m.PhotoUrl, Email = PlayerRules.MaskEmail(m.Email) })
         .ToList();
 
-    private async Task<ManagedTeamDto> BuildDetailAsync(Team team)
+    private async Task<ManagedTeamDto> BuildDetailAsync(Team team, string viewerId)
     {
         var owner = await _users.GetUserAsync(team.UserId);
         var squadIds = (await _teams.GetPlayerIdsAsync(team.UserId, new[] { team.Id })).GetValueOrDefault(team.Id) ?? new List<string>();
         var roster = await _players.ListAsync(team.UserId, null, false, 0, 1000);
         var creator = roster.FirstOrDefault(p => p.IsSelf);
         var byId = roster.ToDictionary(p => p.Id);
+        var admins = (await _managers.ListManagersAsync(team.UserId, team.Id)).Select(m => m.UserId).ToHashSet();
 
         ManagedMemberDto Member(Player p) => new()
         {
@@ -210,7 +215,9 @@ public class TeamManagementService : ITeamManagementService
             BowlingStyle = p.BowlingStyle,
             PhotoUrl = p.PhotoUrl,
             IsRegistered = p.LinkedUserId != null,
-            IsOwner = creator != null && p.Id == creator.Id
+            IsOwner = creator != null && p.Id == creator.Id,
+            IsAdmin = p.LinkedUserId != null && admins.Contains(p.LinkedUserId),
+            IsMe = p.LinkedUserId == viewerId
         };
 
         var dto = Header(team, owner?.DisplayName, squadIds.Count);

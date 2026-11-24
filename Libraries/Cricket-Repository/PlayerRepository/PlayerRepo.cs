@@ -17,6 +17,8 @@ public interface IPlayerRepo
     // ---- profile / linking ----
     /// <summary>The player that represents <paramref name="uid"/> in their own roster (even if soft-deleted).</summary>
     Task<Player?> GetSelfAsync(string uid);
+    /// <summary>Players in the user's list (not deleted).</summary>
+    Task<int> CountActiveAsync(string uid);
     /// <summary>A live (not deleted) player in the roster with this e-mail, optionally ignoring one id.</summary>
     Task<Player?> FindByEmailAsync(string uid, string email, string? exceptId = null);
     /// <summary>The player in <paramref name="uid"/>'s roster that is linked to <paramref name="userId"/> (even if deleted).</summary>
@@ -80,6 +82,9 @@ public class PlayerRepo : IPlayerRepo
     }
 
     // ------------------------------------------------------------ profile / linking
+
+    public Task<int> CountActiveAsync(string uid) =>
+        _ctx.Players.AsNoTracking().CountAsync(x => x.UserId == uid && x.DeletedAt == null);
 
     public Task<Player?> GetSelfAsync(string uid) =>
         _ctx.Players.FirstOrDefaultAsync(x => x.UserId == uid && x.IsSelf);

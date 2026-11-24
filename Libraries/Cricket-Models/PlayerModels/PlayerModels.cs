@@ -94,3 +94,10 @@ public class AddPlayerFromUserRequest
 {
     [Required, StringLength(64)] public string UserId { get; set; } = "";
 }
+
+/// <summary>Limits per user. Enforced by the API.</summary>
+public static class PlayerLimits
+{
+    /// <summary>Players in a user's list (their own player and registered users added from search count too).</summary>
+    public const int MaxPlayers = 50;
+}

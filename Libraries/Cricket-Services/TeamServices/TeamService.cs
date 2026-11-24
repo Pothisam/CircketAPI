@@ -3,6 +3,7 @@ using Cricket_Models.Enums;
 using Cricket_Models.TeamModels;
 using Cricket_Repository.Entity;
 using Cricket_Repository.PlayerRepository;
+using Cricket_Repository.TeamManagerRepository;
 using Cricket_Repository.TeamRepository;
 using Cricket_Repository.UserRepository;
 using Cricket_Services.NotificationServices;
@@ -31,13 +32,15 @@ public class TeamService : ITeamService
     private readonly ITeamRepo _teams;
     private readonly IUserRepo _users;
     private readonly IPlayerRepo _players;
+    private readonly ITeamManagerRepo _managers;
     private readonly INotificationDispatcher _dispatcher;
 
-    public TeamService(ITeamRepo teams, IUserRepo users, IPlayerRepo players, INotificationDispatcher dispatcher)
+    public TeamService(ITeamRepo teams, IUserRepo users, IPlayerRepo players, ITeamManagerRepo managers, INotificationDispatcher dispatcher)
     {
         _teams = teams;
         _users = users;
         _players = players;
+        _managers = managers;
         _dispatcher = dispatcher;
     }
 
@@ -119,6 +122,11 @@ public class TeamService : ITeamService
             var creator = await _players.GetSelfAsync(uid);
             if (creator != null && squadBefore.Contains(creator.Id) && !playerIds.Contains(creator.Id))
                 throw ApiException.Forbidden("The creator of the team cannot be removed from it.");
+
+            // A manager cannot take themselves out (they would lose access): they give the team back instead.
+            var me = await _players.GetByLinkedUserAsync(uid, actorUid);
+            if (me != null && squadBefore.Contains(me.Id) && !playerIds.Contains(me.Id))
+                throw ApiException.Forbidden("You cannot remove yourself from the team. Give the team back instead.");
         }
 
         team ??= new Team { Id = id, UserId = uid, CreatedAt = now };
@@ -132,6 +140,10 @@ public class TeamService : ITeamService
         team.DeletedAt = null;                           // an upsert revives a soft-deleted team
 
         await _teams.SaveAsync(team, isNew, playerIds);
+
+        // Admins are chosen from the squad: somebody who left the squad is no longer an admin.
+        if (!isNew)
+            await _managers.RemoveExceptAsync(uid, id, await _teams.GetLinkedUserIdsAsync(uid, playerIds));
 
         var added = playerIds.Except(squadBefore).ToList();
         if (added.Count > 0) await QueueTeamAddedAsync(uid, actorUid, team, added);

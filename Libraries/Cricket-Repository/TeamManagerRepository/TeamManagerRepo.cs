@@ -14,6 +14,8 @@ public interface ITeamManagerRepo
     Task<int> CountManagersAsync(string ownerId, string teamId);
     Task AddAsync(TeamManager manager);
     Task<bool> RemoveAsync(string ownerId, string teamId, string managerUserId);
+    /// <summary>Removes every manager of the team that is not in <paramref name="keepUserIds"/> (admins must be in the squad).</summary>
+    Task<int> RemoveExceptAsync(string ownerId, string teamId, IEnumerable<string> keepUserIds);
     /// <summary>Teams of other users that were handed over to <paramref name="userId"/> (not deleted).</summary>
     Task<List<ManagedTeamRow>> ListManagedTeamsAsync(string userId);
 }
@@ -50,6 +52,13 @@ public class TeamManagerRepo : ITeamManagerRepo
     public async Task<bool> RemoveAsync(string ownerId, string teamId, string managerUserId) =>
         await _ctx.TeamManagers.Where(m => m.OwnerUserId == ownerId && m.TeamId == teamId && m.ManagerUserId == managerUserId)
             .ExecuteDeleteAsync() > 0;
+
+    public Task<int> RemoveExceptAsync(string ownerId, string teamId, IEnumerable<string> keepUserIds)
+    {
+        var keep = keepUserIds.ToList();
+        return _ctx.TeamManagers.Where(m => m.OwnerUserId == ownerId && m.TeamId == teamId && !keep.Contains(m.ManagerUserId))
+            .ExecuteDeleteAsync();
+    }
 
     public async Task<List<ManagedTeamRow>> ListManagedTeamsAsync(string userId)
     {
